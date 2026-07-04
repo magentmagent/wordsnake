@@ -363,7 +363,7 @@
       position: relative;
       z-index: 3;
       pointer-events: none;
-      animation: snakeClear 720ms ease-in forwards;
+      animation: snakeClear 820ms ease-in-out forwards;
       animation-delay: var(--clear-delay, 0ms);
     }
 
@@ -384,12 +384,12 @@
         opacity: 1;
       }
       45% {
-        transform: translate(calc(var(--clear-x, 0) * 22%), calc(var(--clear-y, 0) * 22%)) scale(0.94);
+        transform: translate(calc(var(--clear-x, 0) * 44%), calc(var(--clear-y, 0) * 44%)) scale(0.98);
         opacity: 1;
       }
       100% {
-        transform: translate(calc(var(--clear-x, 0) * 88%), calc(var(--clear-y, 0) * 88%)) scale(0.52);
-        opacity: 0;
+        transform: translate(calc(var(--clear-x, 0) * 104%), calc(var(--clear-y, 0) * 104%)) scale(0.92);
+        opacity: 0.08;
       }
     }
 
@@ -403,7 +403,7 @@
         opacity: 1;
       }
       100% {
-        transform: translate(calc(var(--clear-x, 0) * 210%), calc(var(--clear-y, 0) * 210%)) scale(0.7);
+        transform: translate(calc(var(--clear-x, 0) * 230%), calc(var(--clear-y, 0) * 230%)) scale(0.74);
         opacity: 0;
       }
     }
@@ -666,7 +666,7 @@
         <button id="placeBtn" class="button primary large" type="button">놓기</button>
         <div class="action-row">
           <button id="undoBtn" class="button" type="button">되돌리기</button>
-          <button id="newBtn" class="button warn" type="button">처음으로</button>
+          <button id="newBtn" class="button warn" type="button">항복</button>
         </div>
       </section>
     </main>
@@ -807,6 +807,7 @@
     let undoStack = [];
     let newCellsForAnimation = [];
     let clearAnimation = null;
+    let clearTimer = null;
     let lastMissingWord = "";
 
     const els = {
@@ -894,7 +895,7 @@
       }
 
       const frames = new Map();
-      const ordered = [...latest.entries()].sort((a, b) => a[1].index - b[1].index);
+      const ordered = [...latest.entries()].sort((a, b) => b[1].index - a[1].index);
       for (const [key, frame] of ordered) {
         frames.set(key, {
           order: frames.size,
@@ -904,6 +905,28 @@
         });
       }
       return frames;
+    }
+
+    function clearAnimationTime(frames) {
+      return (Math.max(0, frames.size - 1) * 70) + 980;
+    }
+
+    function startSnakeExit(message, returnToIntro = false) {
+      if (!state.snakeTrail.length) {
+        showIntro();
+        return;
+      }
+      if (clearTimer) window.clearTimeout(clearTimer);
+      const exitDir = DIRECTIONS[state.lastDir] || { x: 1, y: 0 };
+      clearAnimation = buildClearAnimation(state.snakeTrail, exitDir);
+      setMessage(message, "ok");
+      render();
+      if (returnToIntro) {
+        clearTimer = window.setTimeout(() => {
+          clearTimer = null;
+          showIntro();
+        }, clearAnimationTime(clearAnimation));
+      }
     }
 
     function scorePlacement(board, path, newCells, word, firstTurn) {
@@ -983,6 +1006,7 @@
     }
 
     function selectStart(x, y) {
+      if (clearAnimation) return;
       if (!isEdge(state.board, x, y)) {
         setMessage("시작점은 가장자리 칸만 가능합니다.", "error");
         return;
@@ -1003,6 +1027,7 @@
     }
 
     function placeCurrentWord() {
+      if (clearAnimation) return;
       const result = validatePlacement(state.board, state, els.boardInput.value, state.selectedDir);
       if (!result.ok) {
         lastMissingWord = result.code === "missing-word" ? result.word : "";
@@ -1037,16 +1062,16 @@
 
       const filled = filledCount(state.board);
       const done = filled === state.board.length * state.board.length;
-      if (done) {
-        const exitDir = DIRECTIONS[state.lastDir] || { x: 1, y: 0 };
-        clearAnimation = buildClearAnimation(state.snakeTrail, exitDir);
-      }
       const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
       const scoreParts = [`+${result.score.gained}점`, `새 칸 +${result.newCells.length}`, `글자 +${result.score.wordBonus}`];
       if (result.score.crossBonus) scoreParts.push(`교차 +${result.score.crossBonus}`);
-      setMessage(done ? "전체 보드 클리어!" : `${ruleText}${result.word} 배치 완료. ${scoreParts.join(" · ")}`, "ok");
+      setMessage(done ? "전체 보드 클리어! 스네이크가 빠져나갑니다." : `${ruleText}${result.word} 배치 완료. ${scoreParts.join(" · ")}`, "ok");
       els.boardInput.value = "";
       lastMissingWord = "";
+      if (done) {
+        startSnakeExit("전체 보드 클리어! 스네이크가 빠져나갑니다.");
+        return;
+      }
       render();
       focusBoardInput();
     }
@@ -1075,6 +1100,10 @@
       restoreState(snapshot);
       newCellsForAnimation = [];
       clearAnimation = null;
+      if (clearTimer) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
       setMessage("한 턴 되돌렸습니다.", "ok");
       render();
     }
@@ -1084,6 +1113,10 @@
       undoStack = [];
       newCellsForAnimation = [];
       clearAnimation = null;
+      if (clearTimer) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
       els.boardInput.value = "";
       render();
       focusBoardInput();
@@ -1103,6 +1136,19 @@
       els.introScreen.classList.remove("hidden");
       els.boardInput.value = "";
       clearAnimation = null;
+      if (clearTimer) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+    }
+
+    function surrenderGame() {
+      if (clearAnimation) return;
+      if (!state.snakeTrail.length) {
+        showIntro();
+        return;
+      }
+      startSnakeExit("항복했습니다. 스네이크가 길을 따라 빠져나갑니다.", true);
     }
 
     function focusBoardInput() {
@@ -1135,6 +1181,7 @@
 
     function selectDirectionCell(x, y) {
       const dir = dirFromNextCell(x, y);
+      if (clearAnimation) return false;
       if (!dir) return false;
       state.selectedDir = dir;
       setMessage(state.turn === 0 ? "단어를 입력하고 놓기를 누르세요." : "뒤 글자를 입력하고 놓기를 누르세요.", "ok");
@@ -1253,7 +1300,7 @@
           if (clearFrame) {
             button.classList.add("clear-cell");
             if (clearFrame.exit) button.classList.add("clear-exit-cell");
-            button.style.setProperty("--clear-delay", `${clearFrame.order * 52}ms`);
+            button.style.setProperty("--clear-delay", `${clearFrame.order * 70}ms`);
             button.style.setProperty("--clear-x", String(clearFrame.x));
             button.style.setProperty("--clear-y", String(clearFrame.y));
           }
@@ -1405,7 +1452,7 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.undoBtn.addEventListener("click", undo);
-    els.newBtn.addEventListener("click", showIntro);
+    els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);
     els.boardInput.addEventListener("keydown", event => {
       if (event.key === "Enter") placeCurrentWord();
