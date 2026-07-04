@@ -821,8 +821,8 @@
         return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
       }
 
-      const headLetter = board[anchor.y][anchor.x];
-      const allowedStarts = headStartLetters(headLetter);
+      const headLetter = firstTurn ? "" : board[anchor.y][anchor.x];
+      const allowedStarts = firstTurn ? [] : headStartLetters(headLetter);
       if (!firstTurn && !allowedStarts.includes(word[0])) {
         return { ok: false, message: `현재 머리 글자 '${allowedStarts.join("/")}'로 시작하는 단어를 입력하세요.` };
       }
