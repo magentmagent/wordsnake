@@ -297,6 +297,40 @@
       box-shadow: inset 0 0 0 4px var(--accent-2);
     }
 
+    .cell.initial-law-cell {
+      position: relative;
+      background: #fff7ed;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    .cell.initial-law-cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom right, transparent calc(50% - 1px), #9c6644 50%, transparent calc(50% + 1px));
+      pointer-events: none;
+    }
+
+    .initial-law-letter {
+      position: absolute;
+      z-index: 1;
+      font-size: clamp(0.5rem, calc(34vw / var(--board-size, 8)), 1.15rem);
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .initial-law-letter.from {
+      left: 16%;
+      top: 15%;
+    }
+
+    .initial-law-letter.to {
+      right: 16%;
+      bottom: 15%;
+      color: var(--accent);
+    }
+
     .cell.new-cell {
       animation: pop 420ms ease;
     }
@@ -625,6 +659,71 @@
       return isKoreanWord(word) && word.length >= 2;
     }
 
+    const HANGUL_BASE = 0xac00;
+    const HANGUL_END = 0xd7a3;
+    const JUNG_COUNT = 21;
+    const JONG_COUNT = 28;
+    const JUNG_WITH_INITIAL_LAW_TO_IEUNG = new Set([2, 3, 6, 7, 12, 17, 20]);
+    const JUNG_WITH_RIEUL_TO_NIEUN = new Set([0, 1, 8, 9, 13, 18]);
+
+    function composeHangul(initialIndex, medialIndex, finalIndex) {
+      return String.fromCharCode(HANGUL_BASE + ((initialIndex * JUNG_COUNT + medialIndex) * JONG_COUNT) + finalIndex);
+    }
+
+    function decomposeHangul(syllable) {
+      const code = syllable.charCodeAt(0);
+      if (code < HANGUL_BASE || code > HANGUL_END) return null;
+      const offset = code - HANGUL_BASE;
+      const initialIndex = Math.floor(offset / (JUNG_COUNT * JONG_COUNT));
+      const medialIndex = Math.floor((offset % (JUNG_COUNT * JONG_COUNT)) / JONG_COUNT);
+      const finalIndex = offset % JONG_COUNT;
+      return { initialIndex, medialIndex, finalIndex };
+    }
+
+    function initialLawReadings(syllable) {
+      const parts = decomposeHangul(syllable);
+      if (!parts) return [syllable];
+      const readings = [syllable];
+
+      if (parts.initialIndex === 5 && JUNG_WITH_INITIAL_LAW_TO_IEUNG.has(parts.medialIndex)) {
+        readings.push(composeHangul(11, parts.medialIndex, parts.finalIndex));
+      }
+
+      if (parts.initialIndex === 5 && JUNG_WITH_RIEUL_TO_NIEUN.has(parts.medialIndex)) {
+        readings.push(composeHangul(2, parts.medialIndex, parts.finalIndex));
+      }
+
+      if (parts.initialIndex === 2 && JUNG_WITH_INITIAL_LAW_TO_IEUNG.has(parts.medialIndex)) {
+        readings.push(composeHangul(11, parts.medialIndex, parts.finalIndex));
+      }
+
+      return [...new Set(readings)];
+    }
+
+    function headStartLetters(head) {
+      return initialLawReadings(head);
+    }
+
+    function wordCandidatesForInput(rawInput, board, gameState) {
+      const input = normalizeWord(rawInput);
+      if (!input) return [];
+      if (gameState.turn === 0) return [input];
+
+      const anchor = gameState.head;
+      const head = anchor && board[anchor.y] ? board[anchor.y][anchor.x] : "";
+      if (!head) return [input];
+
+      const starts = headStartLetters(head);
+      const candidates = starts.map(start => start + input);
+      if (input.length >= 2 && starts.includes(input[0])) candidates.unshift(input);
+      return [...new Set(candidates)];
+    }
+
+    function playableWordForInput(rawInput, board = state.board, gameState = state) {
+      const candidates = wordCandidatesForInput(rawInput, board, gameState);
+      return candidates.find(word => dictionary.wordSet.has(word)) || candidates[0] || normalizeWord(rawInput);
+    }
+
     function buildDictionary(words) {
       const wordSet = new Set();
       for (const raw of words) {
@@ -669,6 +768,7 @@
         lastDir: null,
         turn: 0,
         log: [],
+        initialLawMarks: [],
         message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
         messageType: "ok"
       };
@@ -683,6 +783,7 @@
         lastDir: state.lastDir,
         turn: state.turn,
         log: state.log.map(item => ({ ...item })),
+        initialLawMarks: state.initialLawMarks.map(item => ({ ...item })),
         message: state.message,
         messageType: state.messageType
       };
@@ -694,19 +795,16 @@
         board: cloneBoard(snapshot.board),
         start: snapshot.start ? { ...snapshot.start } : null,
         head: snapshot.head ? { ...snapshot.head } : null,
-        log: snapshot.log.map(item => ({ ...item }))
+        log: snapshot.log.map(item => ({ ...item })),
+        initialLawMarks: (snapshot.initialLawMarks || []).map(item => ({ ...item }))
       };
     }
 
     function validatePlacement(board, gameState, rawWord, dir) {
-      const word = normalizeWord(rawWord);
+      const input = normalizeWord(rawWord);
       const delta = DIRECTIONS[dir];
       if (!delta) return { ok: false, message: "방향을 선택하세요." };
-      if (!isKoreanWord(word)) return { ok: false, message: "순수 한글 음절 단어만 사용할 수 있습니다." };
-      if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
-      if (!dictionary.wordSet.has(word)) {
-        return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
-      }
+      if (!isKoreanWord(input)) return { ok: false, message: "순수 한글 음절 단어만 사용할 수 있습니다." };
       if (!gameState.start) return { ok: false, message: "먼저 가장자리 시작 칸을 선택하세요." };
       if (gameState.lastDir && gameState.lastDir === dir) return { ok: false, message: "직전 방향과 같은 방향으로는 이동할 수 없습니다." };
 
@@ -715,15 +813,26 @@
       if (!anchor) return { ok: false, message: "현재 머리 칸이 없습니다." };
       if (firstTurn && !isEdge(board, anchor.x, anchor.y)) return { ok: false, message: "시작점은 보드 가장자리여야 합니다." };
 
+      const candidates = wordCandidatesForInput(input, board, gameState);
+      const word = candidates.find(candidate => dictionary.wordSet.has(candidate)) || candidates[0] || input;
+      if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
+      if (!dictionary.wordSet.has(word)) {
+        return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
+      }
+
       const headLetter = board[anchor.y][anchor.x];
-      if (!firstTurn && headLetter !== word[0]) {
-        return { ok: false, message: `현재 머리 글자 '${headLetter}'로 시작하는 단어를 입력하세요.` };
+      const allowedStarts = headStartLetters(headLetter);
+      if (!firstTurn && !allowedStarts.includes(word[0])) {
+        return { ok: false, message: `현재 머리 글자 '${allowedStarts.join("/")}'로 시작하는 단어를 입력하세요.` };
       }
 
       const path = [];
       const startIndex = firstTurn ? 0 : 1;
+      const initialLaw = !firstTurn && word[0] !== headLetter
+        ? { x: anchor.x, y: anchor.y, from: headLetter, to: word[0] }
+        : null;
       if (!firstTurn) {
-        path.push({ x: anchor.x, y: anchor.y, letter: word[0] });
+        path.push({ x: anchor.x, y: anchor.y, letter: headLetter });
       }
 
       for (let i = startIndex; i < word.length; i += 1) {
@@ -741,7 +850,7 @@
 
       const newCells = path.filter(({ x, y }) => !board[y][x]);
       const end = path[path.length - 1];
-      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y } };
+      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y }, initialLaw };
     }
 
     function applyPlacement(board, placement) {
@@ -773,8 +882,7 @@
     }
 
     function placeCurrentWord() {
-      const word = currentInputWord();
-      const result = validatePlacement(state.board, state, word, state.selectedDir);
+      const result = validatePlacement(state.board, state, els.boardInput.value, state.selectedDir);
       if (!result.ok) {
         lastMissingWord = result.code === "missing-word" ? result.word : "";
         setMessage(result.message, "error");
@@ -795,6 +903,11 @@
         newCount: result.newCells.length
       });
       state.log = state.log.slice(0, 8);
+      if (result.initialLaw) {
+        const key = `${result.initialLaw.x},${result.initialLaw.y}`;
+        state.initialLawMarks = state.initialLawMarks.filter(item => `${item.x},${item.y}` !== key);
+        state.initialLawMarks.push(result.initialLaw);
+      }
       newCellsForAnimation = result.newCells.map(cell => `${cell.x},${cell.y}`);
 
       const filled = filledCount(state.board);
@@ -812,11 +925,7 @@
     }
 
     function currentInputWord() {
-      const raw = normalizeWord(els.boardInput.value);
-      if (state.turn === 0) return raw;
-      const head = headLetter();
-      if (!head) return raw;
-      return head + raw;
+      return playableWordForInput(els.boardInput.value);
     }
 
     function setMessage(message, type) {
@@ -900,18 +1009,25 @@
     }
 
     function previewPlacement(rawWord) {
-      const word = state.turn === 0 ? normalizeWord(rawWord) : currentInputWord();
+      const word = playableWordForInput(rawWord);
       const delta = DIRECTIONS[state.selectedDir];
       const anchor = anchorPos();
       const preview = new Map();
       const conflicts = new Set();
-      if (!word || !delta || !anchor) return { preview, conflicts };
+      let initialLaw = null;
+      if (!word || !delta || !anchor) return { preview, conflicts, initialLaw };
 
       const firstTurn = state.turn === 0;
       const startIndex = firstTurn ? 0 : 1;
       if (!firstTurn) {
-        preview.set(`${anchor.x},${anchor.y}`, word[0] || "");
-        if (state.board[anchor.y][anchor.x] && state.board[anchor.y][anchor.x] !== word[0]) {
+        const head = state.board[anchor.y][anchor.x] || "";
+        if (head && word[0] && head !== word[0] && headStartLetters(head).includes(word[0])) {
+          initialLaw = { x: anchor.x, y: anchor.y, from: head, to: word[0] };
+          preview.set(`${anchor.x},${anchor.y}`, head);
+        } else {
+          preview.set(`${anchor.x},${anchor.y}`, word[0] || "");
+        }
+        if (head && head !== word[0] && !initialLaw) {
           conflicts.add(`${anchor.x},${anchor.y}`);
         }
       }
@@ -924,13 +1040,38 @@
         preview.set(key, word[i]);
         if (state.board[y][x] && state.board[y][x] !== word[i]) conflicts.add(key);
       }
-      return { preview, conflicts };
+      return { preview, conflicts, initialLaw };
+    }
+
+    function initialLawMarkMap(previewInitialLaw) {
+      const marks = new Map();
+      for (const mark of state.initialLawMarks) {
+        marks.set(`${mark.x},${mark.y}`, mark);
+      }
+      if (previewInitialLaw) {
+        marks.set(`${previewInitialLaw.x},${previewInitialLaw.y}`, previewInitialLaw);
+      }
+      return marks;
+    }
+
+    function renderInitialLawCell(button, mark) {
+      button.classList.add("initial-law-cell");
+      button.textContent = "";
+      const from = document.createElement("span");
+      from.className = "initial-law-letter from";
+      from.textContent = mark.from;
+      const to = document.createElement("span");
+      to.className = "initial-law-letter to";
+      to.textContent = mark.to;
+      button.appendChild(from);
+      button.appendChild(to);
     }
 
     function renderBoard() {
       els.board.innerHTML = "";
       const animated = new Set(newCellsForAnimation);
-      const { preview, conflicts } = previewPlacement(els.boardInput.value);
+      const { preview, conflicts, initialLaw } = previewPlacement(els.boardInput.value);
+      const initialLawMarks = initialLawMarkMap(initialLaw);
       const size = state.board.length;
       els.board.style.setProperty("--board-size", String(size));
       for (let y = 0; y < size; y += 1) {
@@ -941,8 +1082,16 @@
           const key = `${x},${y}`;
           const previewLetter = preview.get(key);
           const cellLetter = state.board[y][x];
-          button.textContent = cellLetter || previewLetter || "";
-          button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${cellLetter || previewLetter || "빈 칸"}`);
+          const initialLawMark = initialLawMarks.get(key);
+          if (initialLawMark) {
+            renderInitialLawCell(button, initialLawMark);
+          } else {
+            button.textContent = cellLetter || previewLetter || "";
+          }
+          const label = initialLawMark
+            ? `${initialLawMark.from}/${initialLawMark.to} 두음법칙 표시`
+            : cellLetter || previewLetter || "빈 칸";
+          button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${label}`);
           if (isEdge(state.board, x, y)) button.classList.add("edge");
           if (cellLetter) button.classList.add("filled");
           if (preview.has(key)) button.classList.add("preview-cell");
@@ -969,8 +1118,9 @@
       const filled = filledCount(state.board);
       const size = state.board.length;
       const total = size * size;
-      const headLetter = state.head && state.board[state.head.y][state.head.x] ? state.board[state.head.y][state.head.x] : "-";
-      els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${headLetter} 뒤 글자 입력`;
+      const head = state.head && state.board[state.head.y][state.head.x] ? state.board[state.head.y][state.head.x] : "-";
+      const startLabel = head === "-" ? head : headStartLetters(head).join("/");
+      els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${startLabel} 뒤 글자 입력`;
       els.scoreText.textContent = `${filled} / ${total}`;
     }
 
@@ -1115,6 +1265,8 @@
       isEdge,
       filledCount,
       buildDictionary,
+      initialLawReadings,
+      wordCandidatesForInput,
       validatePlacement,
       applyPlacement
     };
