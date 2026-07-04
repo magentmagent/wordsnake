@@ -9,6 +9,9 @@
   <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
   <meta property="og:type" content="website">
   <title>wordsnake</title>
+  <script>
+    if (location.protocol !== "file:") document.documentElement.classList.add("web-launch");
+  </script>
   <style>
     :root {
       color-scheme: light;
@@ -66,6 +69,10 @@
 
     .intro {
       justify-content: center;
+    }
+
+    .web-launch #introScreen {
+      display: none !important;
     }
 
     .intro h1 {
