@@ -374,6 +374,16 @@
       will-change: transform;
     }
 
+    .cell.exit-ghost {
+      background: rgba(223, 241, 238, 0.42);
+      color: rgba(32, 35, 39, 0.42);
+      box-shadow: none;
+    }
+
+    .cell.exit-ghost.initial-law-cell {
+      opacity: 0.46;
+    }
+
     @keyframes pop {
       0% { transform: scale(0.86); }
       55% { transform: scale(1.06); }
@@ -998,6 +1008,7 @@
     let newCellsForAnimation = [];
     let clearAnimation = null;
     let clearTimer = null;
+    let exitGhostKeys = new Set();
     let lastMissingWord = "";
 
     const els = {
@@ -1150,12 +1161,14 @@
         return;
       }
       if (clearTimer) window.clearTimeout(clearTimer);
+      exitGhostKeys = new Set();
       clearAnimation = buildClearAnimation(state.snakeTrail, state.board.length);
       setMessage(message, "ok");
       render();
       if (typeof onDone !== "function") return;
       clearTimer = window.setTimeout(() => {
         clearTimer = null;
+        exitGhostKeys = new Set(clearAnimation.keys());
         clearAnimation = null;
         onDone();
       }, clearAnimationTime(clearAnimation));
@@ -1348,6 +1361,7 @@
       restoreState(snapshot);
       newCellsForAnimation = [];
       clearAnimation = null;
+      exitGhostKeys = new Set();
       if (clearTimer) {
         window.clearTimeout(clearTimer);
         clearTimer = null;
@@ -1361,6 +1375,7 @@
       undoStack = [];
       newCellsForAnimation = [];
       clearAnimation = null;
+      exitGhostKeys = new Set();
       if (clearTimer) {
         window.clearTimeout(clearTimer);
         clearTimer = null;
@@ -1403,6 +1418,7 @@
       els.introScreen.classList.remove("hidden");
       els.boardInput.value = "";
       clearAnimation = null;
+      exitGhostKeys = new Set();
       if (clearTimer) {
         window.clearTimeout(clearTimer);
         clearTimer = null;
@@ -1548,8 +1564,11 @@
 
     function renderBoard() {
       els.board.innerHTML = "";
+      const exiting = Boolean(clearAnimation || state.finished || exitGhostKeys.size);
       const animated = new Set(newCellsForAnimation);
-      const { preview, conflicts, initialLaw } = previewPlacement(els.boardInput.value);
+      const { preview, conflicts, initialLaw } = exiting
+        ? { preview: new Map(), conflicts: new Set(), initialLaw: null }
+        : previewPlacement(els.boardInput.value);
       const initialLawMarks = initialLawMarkMap(initialLaw);
       const size = state.board.length;
       els.board.style.setProperty("--board-size", String(size));
@@ -1565,6 +1584,7 @@
           const key = `${x},${y}`;
           const previewLetter = preview.get(key);
           const cellLetter = state.board[y][x];
+          const isExitGhost = exitGhostKeys.has(key);
           const initialLawMark = initialLawMarks.get(key);
           if (initialLawMark) {
             renderInitialLawCell(button, initialLawMark);
@@ -1575,14 +1595,15 @@
             ? `${initialLawMark.from}/${initialLawMark.to} 두음법칙 표시`
             : cellLetter || previewLetter || "빈 칸";
           button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${label}`);
-          if (isEdge(state.board, x, y)) button.classList.add("edge");
+          if (!exiting && isEdge(state.board, x, y)) button.classList.add("edge");
           if (cellLetter) button.classList.add("filled");
+          if (isExitGhost) button.classList.add("exit-ghost");
           if (preview.has(key)) button.classList.add("preview-cell");
           if (conflicts.has(key)) button.classList.add("conflict-cell");
-          if (state.start && state.start.x === x && state.start.y === y) button.classList.add("start");
-          if (state.head && state.head.x === x && state.head.y === y) button.classList.add("head");
-          const nextDir = dirFromNextCell(x, y);
-          if (nextDir) {
+          if (!exiting && state.start && state.start.x === x && state.start.y === y) button.classList.add("start");
+          if (!exiting && state.head && state.head.x === x && state.head.y === y) button.classList.add("head");
+          const nextDir = exiting ? null : dirFromNextCell(x, y);
+          if (!exiting && nextDir) {
             button.classList.add("next-cell");
             if (state.selectedDir === nextDir) button.classList.add("selected-next");
           }
