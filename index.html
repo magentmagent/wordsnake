@@ -714,7 +714,8 @@
       if (!head) return [input];
 
       const starts = headStartLetters(head);
-      const candidates = starts.map(start => start + input);
+      const preferredStarts = [...starts.slice(1), starts[0]];
+      const candidates = preferredStarts.map(start => start + input);
       if (input.length >= 2 && starts.includes(input[0])) candidates.unshift(input);
       return [...new Set(candidates)];
     }
