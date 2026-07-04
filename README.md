@@ -1,6 +1,6 @@
-# wordsnake
+# word chain snake
 
-`wordsnake`는 끝말잇기, 스네이크 이동, 크로스워드식 글자 교차를 합친 모바일 우선 HTML 퍼즐 프로토타입입니다.
+`word chain snake`는 끝말잇기, 스네이크 이동, 크로스워드식 글자 교차를 합친 모바일 우선 HTML 퍼즐 프로토타입입니다.
 
 ## 실행
 

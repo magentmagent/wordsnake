@@ -1,10 +1,10 @@
-# wordsnake Notices
+# word chain snake Notices
 
 This project combines original game code with dictionary data derived from third-party sources. This file is intended to make attribution and redistribution boundaries clear before public release or ad-supported deployment.
 
 ## Game Code
 
-The `wordsnake` game code, UI, and project-specific scripts are original work unless otherwise noted.
+The `word chain snake` game code, UI, and project-specific scripts are original work unless otherwise noted.
 
 Choose and document a project license before publishing the repository. If no license is chosen, keep the code under "all rights reserved" by default.
 

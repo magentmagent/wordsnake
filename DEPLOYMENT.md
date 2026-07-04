@@ -1,4 +1,4 @@
-# wordsnake Public Release Guide
+# word chain snake Public Release Guide
 
 This project is ready to publish as a static website. The game currently runs from `index.html` and loads dictionary data from `public/words-data.js`, so no backend server is required.
 
