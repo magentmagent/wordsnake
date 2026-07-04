@@ -24,14 +24,14 @@ async function handleRequest(request, env) {
 
   try {
     if (request.method === "POST" && path === "/suggestions") return createSuggestion(request, env);
-    if (request.method === "GET" && path === "/words") return listApprovedWords(env);
+    if (request.method === "GET" && path === "/words") return listApprovedWords(url, env);
     if (request.method === "POST" && path === "/scores") return createScore(request, env);
     if (request.method === "GET" && path === "/scores") return listScores(url, env);
     if (request.method === "GET" && path === "/admin/suggestions") return listSuggestions(request, url, env);
 
     const match = path.match(/^\/admin\/suggestions\/([^/]+)\/(approve|reject)$/);
     if (request.method === "POST" && match) {
-      return decideSuggestion(request, decodeURIComponent(match[1]), match[2], env);
+      return decideSuggestion(request, decodeURIComponent(match[1]), match[2], env, url);
     }
 
     return json({ error: "not found" }, 404);
@@ -42,13 +42,15 @@ async function handleRequest(request, env) {
 
 async function createSuggestion(request, env) {
   const body = await request.json().catch(() => ({}));
-  const word = normalizeWord(body.word);
-  if (!isValidWord(word)) return json({ error: "순수 한글 2글자 이상 단어만 제안할 수 있습니다." }, 400);
+  const lang = normalizeLang(body.lang);
+  const word = normalizeWord(body.word, lang);
+  if (!isValidWord(word, lang)) return json({ error: "invalid word" }, 400);
 
-  const key = wordKey(word);
+  const key = wordKey(word, lang);
   const now = new Date().toISOString();
   const existing = await readRecord(env, key);
   if (existing) {
+    existing.lang = existing.lang || lang;
     existing.count = Number(existing.count || 1) + 1;
     existing.updatedAt = now;
     await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(existing));
@@ -57,6 +59,7 @@ async function createSuggestion(request, env) {
 
   const record = {
     word,
+    lang,
     status: "pending",
     count: 1,
     createdAt: now,
@@ -66,30 +69,35 @@ async function createSuggestion(request, env) {
   return json({ ok: true, word, status: "pending", duplicate: false, count: 1 }, 201);
 }
 
-async function listApprovedWords(env) {
-  const records = await listRecords(env, "approved");
-  const words = records.map(item => item.word).sort((a, b) => a.localeCompare(b, "ko"));
+async function listApprovedWords(url, env) {
+  const lang = normalizeLang(url.searchParams.get("lang"));
+  const records = await listRecords(env, "approved", lang);
+  const locale = lang === "en" ? "en" : "ko";
+  const words = records.map(item => item.word).sort((a, b) => a.localeCompare(b, locale));
   return new Response(words.join("\n"), { headers: TEXT_HEADERS });
 }
 
 async function listSuggestions(request, url, env) {
   requireAdmin(request, env);
   const status = url.searchParams.get("status") || "pending";
-  const items = await listRecords(env, status);
+  const lang = url.searchParams.has("lang") ? normalizeLang(url.searchParams.get("lang")) : "";
+  const items = await listRecords(env, status, lang);
   items.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
   return json({ items });
 }
 
-async function decideSuggestion(request, word, action, env) {
+async function decideSuggestion(request, word, action, env, url) {
   requireAdmin(request, env);
-  const normalized = normalizeWord(word);
-  if (!isValidWord(normalized)) return json({ error: "invalid word" }, 400);
+  const lang = normalizeLang(url.searchParams.get("lang"));
+  const normalized = normalizeWord(word, lang);
+  if (!isValidWord(normalized, lang)) return json({ error: "invalid word" }, 400);
 
-  const key = wordKey(normalized);
+  const key = wordKey(normalized, lang);
   const record = await readRecord(env, key);
   if (!record) return json({ error: "suggestion not found" }, 404);
 
   const now = new Date().toISOString();
+  record.lang = record.lang || lang;
   record.status = action === "approve" ? "approved" : "rejected";
   record.updatedAt = now;
   record.decidedAt = now;
@@ -99,6 +107,7 @@ async function decideSuggestion(request, word, action, env) {
 
 async function createScore(request, env) {
   const body = await request.json().catch(() => ({}));
+  const lang = normalizeLang(body.lang);
   const score = clampInteger(body.score, 0, 999999999);
   const boardSize = clampInteger(body.boardSize, 6, 12);
   const total = clampInteger(body.total, boardSize * boardSize, boardSize * boardSize);
@@ -109,18 +118,19 @@ async function createScore(request, env) {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const rankScore = String(999999999 - score).padStart(9, "0");
-  const key = `score:${boardSize}:${rankScore}:${Date.now()}:${id}`;
-  const record = { id, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
+  const key = scoreKey(boardSize, rankScore, id, lang);
+  const record = { id, lang, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
 
   await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
   return json({ ok: true, item: record }, 201);
 }
 
 async function listScores(url, env) {
+  const lang = normalizeLang(url.searchParams.get("lang"));
   const boardSize = clampInteger(url.searchParams.get("boardSize"), 6, 12);
   const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
   const id = String(url.searchParams.get("id") || "").trim();
-  const records = await listScoreRecords(env, `score:${boardSize}:`);
+  const records = await listScoreRecords(env, scorePrefix(boardSize, lang));
   const items = records.slice(0, limit);
   const ownIndex = id ? records.findIndex(item => item.id === id) : -1;
   const ownRank = ownIndex >= 0 ? ownIndex + 1 : null;
@@ -148,14 +158,16 @@ async function listScoreRecords(env, prefix) {
   return out;
 }
 
-async function listRecords(env, status) {
+async function listRecords(env, status, lang = "") {
   const out = [];
   let cursor;
   do {
     const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix: "word:", cursor });
     for (const item of page.keys) {
       const record = await readRecord(env, item.name);
-      if (record && (!status || record.status === status)) out.push(record);
+      if (!record) continue;
+      const recordLang = normalizeLang(record.lang);
+      if ((!status || record.status === status) && (!lang || recordLang === lang)) out.push(record);
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
@@ -178,16 +190,32 @@ function requireAdmin(request, env) {
   }
 }
 
-function normalizeWord(word) {
-  return String(word || "").trim();
+function normalizeLang(value) {
+  return String(value || "ko").toLowerCase() === "en" ? "en" : "ko";
 }
 
-function isValidWord(word) {
-  return /^[가-힣]{2,}$/.test(word);
+function normalizeWord(word, lang = "ko") {
+  const text = String(word || "").trim();
+  return lang === "en" ? text.toUpperCase() : text;
 }
 
-function wordKey(word) {
-  return `word:${word}`;
+function isValidWord(word, lang = "ko") {
+  return lang === "en" ? /^[A-Z]{2,}$/.test(word) : /^[가-힣]{2,}$/.test(word);
+}
+
+function wordKey(word, lang = "ko") {
+  return lang === "en" ? `word:en:${word}` : `word:${word}`;
+}
+
+function scorePrefix(boardSize, lang = "ko") {
+  return lang === "en" ? `score:en:${boardSize}:` : `score:${boardSize}:`;
+}
+
+function scoreKey(boardSize, rankScore, id, lang = "ko") {
+  const stamp = Date.now();
+  return lang === "en"
+    ? `score:en:${boardSize}:${rankScore}:${stamp}:${id}`
+    : `score:${boardSize}:${rankScore}:${stamp}:${id}`;
 }
 
 function clampInteger(value, min, max) {
@@ -200,7 +228,7 @@ function sanitizePlayerName(name) {
   return String(name || "")
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim()
-    .slice(0, 16) || "익명";
+    .slice(0, 16) || "Player";
 }
 
 function json(data, status = 200) {

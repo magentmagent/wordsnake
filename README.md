@@ -43,6 +43,20 @@
 python tools/build_words_data_js.py --words public/words.txt --out public/words-data.js
 ```
 
+## 영어판
+
+영어판은 본판에 합치지 않고 `en/index.html`로 분리되어 있습니다. 루트 페이지의 `English` 버튼은 `/wordsnake/en/?start=1&size=8`처럼 영어판으로 바로 이동합니다.
+
+영어 사전은 Wiktextract JSONL 덤프에서 대문자 A-Z 2글자 이상 단어를 추출해 `public/words-en.txt`와 `public/words-en-data.js`로 둡니다.
+
+```powershell
+python .\tools\build_wiktextract_english_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-en.txt --include-forms
+python .\tools\build_words_data_js.py --words .\public\words-en.txt --out .\public\words-en-data.js --global-name window.WORDSNAKE_WORDS_EN
+python .\tools\build_english_page.py
+```
+
+영어판 제안 단어와 랭킹은 서버에 `lang=en`으로 전송되어 한국어판 데이터와 분리됩니다.
+
 ## 표준국어대사전 API 빌드
 
 API 키는 클라이언트 HTML에 넣지 마세요. 브라우저에서 직접 API를 호출하면 키가 노출됩니다. 로컬 Python 스크립트로 `words.txt`를 만든 뒤 게임에서 파일로 불러오거나 `public/words.txt`로 보관하세요.

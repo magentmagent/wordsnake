@@ -12,6 +12,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create public/words-data.js from public/words.txt.")
     parser.add_argument("--words", default="public/words.txt", help="Input words.txt path.")
     parser.add_argument("--out", default="public/words-data.js", help="Output JavaScript file.")
+    parser.add_argument("--global-name", default="window.WORDSNAKE_WORDS", help="Global variable to assign.")
     return parser.parse_args()
 
 
@@ -21,7 +22,7 @@ def main() -> int:
     out_path = Path(args.out)
     text = words_path.read_text(encoding="utf-8")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = "window.WORDSNAKE_WORDS = " + json.dumps(text, ensure_ascii=False) + ";\n"
+    payload = args.global_name + " = " + json.dumps(text, ensure_ascii=False) + ";\n"
     out_path.write_text(payload, encoding="utf-8")
     print(f"wrote {out_path} from {words_path}")
     return 0

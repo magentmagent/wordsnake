@@ -225,9 +225,10 @@
           <button class="warn reject" type="button">거절</button>
         `;
         row.querySelector(".word").textContent = item.word;
-        row.querySelector(".meta").textContent = `제안 ${item.count || 1}회 · ${item.updatedAt || item.createdAt || ""}`;
-        row.querySelector(".approve").addEventListener("click", () => decide(item.word, "approve"));
-        row.querySelector(".reject").addEventListener("click", () => decide(item.word, "reject"));
+        const lang = item.lang || "ko";
+        row.querySelector(".meta").textContent = `${lang.toUpperCase()} · 제안 ${item.count || 1}회 · ${item.updatedAt || item.createdAt || ""}`;
+        row.querySelector(".approve").addEventListener("click", () => decide(item.word, "approve", lang));
+        row.querySelector(".reject").addEventListener("click", () => decide(item.word, "reject", lang));
         els.list.appendChild(row);
       }
     }
@@ -245,10 +246,10 @@
       }
     }
 
-    async function decide(word, action) {
+    async function decide(word, action, lang = "ko") {
       setStatus(`${word} 처리 중...`);
       try {
-        await request(`/admin/suggestions/${encodeURIComponent(word)}/${action}`, { method: "POST" });
+        await request(`/admin/suggestions/${encodeURIComponent(word)}/${action}?lang=${encodeURIComponent(lang)}`, { method: "POST" });
         await loadPending();
       } catch (error) {
         setStatus(error.message, true);

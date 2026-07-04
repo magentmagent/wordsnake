@@ -10,7 +10,7 @@ Choose and document a project license before publishing the repository. If no li
 
 ## Dictionary Data
 
-The generated dictionary files in `public/words.txt` and `public/words-data.js` include data derived from:
+The generated Korean dictionary files in `public/words.txt` and `public/words-data.js` include data derived from:
 
 - National Institute of Korean Language, Standard Korean Language Dictionary / 표준국어대사전
   - Website: https://stdict.korean.go.kr/
@@ -24,6 +24,8 @@ The generated dictionary files in `public/words.txt` and `public/words-data.js` 
 - Wiktionary / Wiktextract-derived data
   - Wiktionary: https://www.wiktionary.org/
   - Wiktextract: https://github.com/tatuylonen/wiktextract
+
+The generated English dictionary files in `public/words-en.txt` and `public/words-en-data.js` are derived from Wiktionary/Wiktextract JSONL data prepared for gameplay.
 
 Kaikki/Wiktionary-derived data is based on Wiktionary content and is generally distributed under Creative Commons Attribution-ShareAlike terms. Review the relevant current license terms before public redistribution:
 
@@ -40,6 +42,7 @@ Dictionary data has been filtered and transformed for gameplay:
 - Some source markers and separators were normalized.
 - Multiple sources were merged and deduplicated.
 - A JavaScript payload, `public/words-data.js`, was generated from `public/words.txt` for file-based browser loading.
+- A JavaScript payload, `public/words-en-data.js`, was generated from `public/words-en.txt` for the separate English version.
 
 ## Advertising and Monetization
 
