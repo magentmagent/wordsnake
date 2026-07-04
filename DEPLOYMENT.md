@@ -97,9 +97,9 @@ The code can be published as a static game, but the dictionary data has separate
 
 This document is practical deployment guidance, not legal advice.
 
-## Optional Word Suggestion Server
+## Optional Word Suggestion and Ranking Server
 
-GitHub Pages cannot store user submissions by itself. To let players suggest missing words and require admin approval, deploy the Cloudflare Worker example in `server/cloudflare-worker.js`.
+GitHub Pages cannot store user submissions or scores by itself. To let players suggest missing words, require admin approval, and upload ranking scores, deploy the Cloudflare Worker example in `server/cloudflare-worker.js`.
 
 High-level setup:
 
@@ -114,3 +114,10 @@ High-level setup:
 9. Visit `admin.html`, enter the worker URL and admin token, then approve or reject pending words.
 
 The worker keeps one record per word. Duplicate player submissions increase the record count instead of creating duplicate pending rows.
+
+The same worker also exposes:
+
+- `POST /scores` to save a completed or surrendered game result.
+- `GET /scores?boardSize=8&limit=10` to read the leaderboard for one board size.
+
+Player names are trimmed to 16 characters and default to `익명` when blank. Update `privacy.html` if you enable the ranking server publicly.

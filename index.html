@@ -521,6 +521,132 @@
       gap: 8px;
     }
 
+    .result-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .result-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .result-stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+      background: var(--paper);
+    }
+
+    .result-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+    }
+
+    .result-stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.95rem;
+      font-weight: 900;
+    }
+
+    .score-submit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .score-name-input {
+      min-width: 0;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      font: inherit;
+      font-weight: 800;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    .result-status {
+      min-height: 1.1em;
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .result-status.error {
+      color: var(--danger);
+    }
+
+    .leaderboard {
+      display: grid;
+      gap: 6px;
+    }
+
+    .leaderboard-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .leaderboard-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 5px;
+    }
+
+    .leaderboard-list li {
+      display: grid;
+      grid-template-columns: 2ch minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      padding: 7px 8px;
+      font-size: 0.82rem;
+      font-weight: 850;
+    }
+
+    .leaderboard-list .rank {
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .leaderboard-list .name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .leaderboard-list .score-value {
+      font-weight: 950;
+    }
+
     .site-links {
       margin: 0;
       color: var(--muted);
@@ -626,6 +752,26 @@
             <button id="suggestBtn" class="button" type="button">제안</button>
           </div>
           <span id="suggestStatus" class="suggest-status"></span>
+        </div>
+        <div id="resultPanel" class="result-panel hidden">
+          <p id="resultTitle" class="result-title">결과</p>
+          <div class="result-stats" aria-label="score result">
+            <div class="result-stat"><span>점수</span><strong id="resultScore">0</strong></div>
+            <div class="result-stat"><span>칸</span><strong id="resultFilled">0 / 0</strong></div>
+            <div class="result-stat"><span>단어</span><strong id="resultTurns">0</strong></div>
+          </div>
+          <div class="score-submit-row">
+            <input id="playerNameInput" class="score-name-input" type="text" maxlength="16" autocomplete="nickname" placeholder="이름">
+            <button id="submitScoreBtn" class="button primary" type="button">등록</button>
+          </div>
+          <p id="scoreSubmitStatus" class="result-status"></p>
+          <div class="leaderboard">
+            <div class="leaderboard-title">
+              <span>랭킹</span>
+              <span id="leaderboardScope">8 x 8</span>
+            </div>
+            <ol id="leaderboardList" class="leaderboard-list"></ol>
+          </div>
         </div>
         <button id="placeBtn" class="button primary large" type="button">놓기</button>
         <div class="action-row">
@@ -784,6 +930,16 @@
       suggestWord: document.querySelector("#suggestWord"),
       suggestBtn: document.querySelector("#suggestBtn"),
       suggestStatus: document.querySelector("#suggestStatus"),
+      resultPanel: document.querySelector("#resultPanel"),
+      resultTitle: document.querySelector("#resultTitle"),
+      resultScore: document.querySelector("#resultScore"),
+      resultFilled: document.querySelector("#resultFilled"),
+      resultTurns: document.querySelector("#resultTurns"),
+      playerNameInput: document.querySelector("#playerNameInput"),
+      submitScoreBtn: document.querySelector("#submitScoreBtn"),
+      scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
+      leaderboardScope: document.querySelector("#leaderboardScope"),
+      leaderboardList: document.querySelector("#leaderboardList"),
       undoBtn: document.querySelector("#undoBtn"),
       newBtn: document.querySelector("#newBtn"),
       sizeSelect: document.querySelector("#sizeSelect"),
@@ -806,6 +962,9 @@
         log: [],
         snakeTrail: [],
         initialLawMarks: [],
+        finished: false,
+        finishType: "",
+        scoreUploaded: false,
         message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
         messageType: "ok"
       };
@@ -824,6 +983,9 @@
         log: state.log.map(item => ({ ...item })),
         snakeTrail: state.snakeTrail.map(item => ({ ...item })),
         initialLawMarks: state.initialLawMarks.map(item => ({ ...item })),
+        finished: state.finished,
+        finishType: state.finishType,
+        scoreUploaded: state.scoreUploaded,
         message: state.message,
         messageType: state.messageType
       };
@@ -893,21 +1055,21 @@
       return maxTime + 180;
     }
 
-    function startSnakeExit(message, returnToIntro = false) {
+    function startSnakeExit(message, onDone = null) {
       if (!state.snakeTrail.length) {
-        showIntro();
+        if (typeof onDone === "function") onDone();
         return;
       }
       if (clearTimer) window.clearTimeout(clearTimer);
       clearAnimation = buildClearAnimation(state.snakeTrail, state.board.length);
       setMessage(message, "ok");
       render();
-      if (returnToIntro) {
-        clearTimer = window.setTimeout(() => {
-          clearTimer = null;
-          showIntro();
-        }, clearAnimationTime(clearAnimation));
-      }
+      if (typeof onDone !== "function") return;
+      clearTimer = window.setTimeout(() => {
+        clearTimer = null;
+        clearAnimation = null;
+        onDone();
+      }, clearAnimationTime(clearAnimation));
     }
 
     function scorePlacement(board, path, newCells, word, firstTurn) {
@@ -987,7 +1149,7 @@
     }
 
     function selectStart(x, y) {
-      if (clearAnimation) return;
+      if (clearAnimation || state.finished) return;
       if (!isEdge(state.board, x, y)) {
         setMessage("시작점은 가장자리 칸만 가능합니다.", "error");
         return;
@@ -1007,8 +1169,24 @@
       focusBoardInput();
     }
 
+    function finishGame(type) {
+      state.finished = false;
+      state.finishType = type;
+      state.selectedDir = null;
+      lastMissingWord = "";
+      els.boardInput.value = "";
+      const message = type === "clear"
+        ? "전체 보드 클리어! 스네이크가 빠져나갑니다."
+        : "항복했습니다. 스네이크가 길을 따라 빠져나갑니다.";
+      startSnakeExit(message, () => {
+        state.finished = true;
+        showResultPanel(type);
+        render();
+      });
+    }
+
     function placeCurrentWord() {
-      if (clearAnimation) return;
+      if (clearAnimation || state.finished) return;
       const result = validatePlacement(state.board, state, els.boardInput.value, state.selectedDir);
       if (!result.ok) {
         lastMissingWord = result.code === "missing-word" ? result.word : "";
@@ -1050,7 +1228,7 @@
       els.boardInput.value = "";
       lastMissingWord = "";
       if (done) {
-        startSnakeExit("전체 보드 클리어! 스네이크가 빠져나갑니다.");
+        finishGame("clear");
         return;
       }
       render();
@@ -1099,6 +1277,7 @@
         clearTimer = null;
       }
       els.boardInput.value = "";
+      hideResultPanel();
       render();
       focusBoardInput();
     }
@@ -1125,11 +1304,15 @@
 
     function surrenderGame() {
       if (clearAnimation) return;
+      if (state.finished) {
+        showIntro();
+        return;
+      }
       if (!state.snakeTrail.length) {
         showIntro();
         return;
       }
-      startSnakeExit("항복했습니다. 스네이크가 길을 따라 빠져나갑니다.", true);
+      finishGame("surrender");
     }
 
     function focusBoardInput() {
@@ -1330,6 +1513,7 @@
       els.message.textContent = state.message;
       els.message.classList.toggle("error", state.messageType === "error");
       renderSuggestionPanel();
+      renderResultPanel();
       renderBoard();
       renderScore();
     }
@@ -1361,6 +1545,136 @@
     function setSuggestStatus(message, isError = false) {
       els.suggestStatus.textContent = message;
       els.suggestStatus.classList.toggle("error", isError);
+    }
+
+    function resultSnapshot() {
+      const filled = filledCount(state.board);
+      const total = state.board.length * state.board.length;
+      return {
+        name: sanitizePlayerName(els.playerNameInput.value),
+        score: state.score,
+        filled,
+        total,
+        boardSize: state.board.length,
+        turns: state.turn,
+        finishType: state.finishType || "surrender"
+      };
+    }
+
+    function sanitizePlayerName(name) {
+      return String(name || "")
+        .replace(/[\u0000-\u001f\u007f]/g, "")
+        .trim()
+        .slice(0, 16) || "익명";
+    }
+
+    function hideResultPanel() {
+      els.resultPanel.classList.add("hidden");
+      els.scoreSubmitStatus.textContent = "";
+      els.scoreSubmitStatus.classList.remove("error");
+      els.leaderboardList.innerHTML = "";
+    }
+
+    function showResultPanel(type) {
+      const savedName = localStorage.getItem("wordsnakePlayerName") || "";
+      if (!els.playerNameInput.value && savedName) els.playerNameInput.value = savedName;
+      els.resultPanel.classList.remove("hidden");
+      els.resultTitle.textContent = type === "clear" ? "클리어 결과" : "항복 결과";
+      setScoreSubmitStatus(SUGGEST_API ? "점수를 등록할 수 있습니다." : "랭킹 서버 주소가 아직 설정되지 않았습니다.", !SUGGEST_API);
+      loadLeaderboard();
+    }
+
+    function renderResultPanel() {
+      els.resultPanel.classList.toggle("hidden", !state.finished);
+      if (!state.finished) {
+        els.placeBtn.disabled = Boolean(clearAnimation);
+        els.undoBtn.disabled = Boolean(clearAnimation);
+        els.newBtn.textContent = "항복";
+        els.submitScoreBtn.disabled = false;
+        return;
+      }
+      const result = resultSnapshot();
+      els.resultTitle.textContent = result.finishType === "clear" ? "클리어 결과" : "항복 결과";
+      els.resultScore.textContent = `${result.score.toLocaleString("ko-KR")}점`;
+      els.resultFilled.textContent = `${result.filled} / ${result.total}`;
+      els.resultTurns.textContent = `${result.turns}개`;
+      els.leaderboardScope.textContent = `${result.boardSize} x ${result.boardSize}`;
+      els.placeBtn.disabled = true;
+      els.undoBtn.disabled = true;
+      els.newBtn.textContent = "처음으로";
+      els.submitScoreBtn.disabled = state.scoreUploaded;
+    }
+
+    function setScoreSubmitStatus(message, isError = false) {
+      els.scoreSubmitStatus.textContent = message;
+      els.scoreSubmitStatus.classList.toggle("error", isError);
+    }
+
+    function renderLeaderboard(items) {
+      els.leaderboardList.innerHTML = "";
+      if (!items.length) {
+        const empty = document.createElement("li");
+        empty.innerHTML = `<span class="rank">-</span><span class="name">아직 기록이 없습니다</span><span class="score-value">0점</span>`;
+        els.leaderboardList.appendChild(empty);
+        return;
+      }
+      items.forEach((item, index) => {
+        const row = document.createElement("li");
+        const finish = item.finishType === "clear" ? "클리어" : "항복";
+        row.innerHTML = `
+          <span class="rank">${index + 1}</span>
+          <span class="name"></span>
+          <span class="score-value">${Number(item.score || 0).toLocaleString("ko-KR")}점</span>
+        `;
+        row.querySelector(".name").textContent = `${item.name || "익명"} · ${finish}`;
+        els.leaderboardList.appendChild(row);
+      });
+    }
+
+    async function loadLeaderboard() {
+      if (!SUGGEST_API) {
+        renderLeaderboard([]);
+        return;
+      }
+      try {
+        const params = new URLSearchParams({ boardSize: String(state.board.length), limit: "10" });
+        const response = await fetch(`${SUGGEST_API}/scores?${params.toString()}`, { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "랭킹을 불러오지 못했습니다.");
+        renderLeaderboard(Array.isArray(data.items) ? data.items : []);
+      } catch (error) {
+        setScoreSubmitStatus(error.message || "랭킹을 불러오지 못했습니다.", true);
+      }
+    }
+
+    async function submitScore() {
+      if (!state.finished || state.scoreUploaded) return;
+      if (!SUGGEST_API) {
+        setScoreSubmitStatus("랭킹 서버 주소가 아직 설정되지 않았습니다.", true);
+        return;
+      }
+
+      const payload = resultSnapshot();
+      els.playerNameInput.value = payload.name;
+      localStorage.setItem("wordsnakePlayerName", payload.name);
+      els.submitScoreBtn.disabled = true;
+      setScoreSubmitStatus("점수 등록 중...");
+      try {
+        const response = await fetch(`${SUGGEST_API}/scores`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "점수 등록에 실패했습니다.");
+        state.scoreUploaded = true;
+        setScoreSubmitStatus("점수가 등록되었습니다.");
+        await loadLeaderboard();
+      } catch (error) {
+        setScoreSubmitStatus(error.message || "점수 등록에 실패했습니다.", true);
+      } finally {
+        els.submitScoreBtn.disabled = state.scoreUploaded;
+      }
     }
 
     function openGithubSuggestion(word) {
@@ -1453,6 +1767,7 @@
     els.startBtn.addEventListener("click", startGame);
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
+    els.submitScoreBtn.addEventListener("click", submitScore);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

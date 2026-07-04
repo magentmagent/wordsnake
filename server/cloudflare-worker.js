@@ -25,6 +25,8 @@ async function handleRequest(request, env) {
   try {
     if (request.method === "POST" && path === "/suggestions") return createSuggestion(request, env);
     if (request.method === "GET" && path === "/words") return listApprovedWords(env);
+    if (request.method === "POST" && path === "/scores") return createScore(request, env);
+    if (request.method === "GET" && path === "/scores") return listScores(url, env);
     if (request.method === "GET" && path === "/admin/suggestions") return listSuggestions(request, url, env);
 
     const match = path.match(/^\/admin\/suggestions\/([^/]+)\/(approve|reject)$/);
@@ -95,6 +97,54 @@ async function decideSuggestion(request, word, action, env) {
   return json({ ok: true, item: record });
 }
 
+async function createScore(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const score = clampInteger(body.score, 0, 999999999);
+  const boardSize = clampInteger(body.boardSize, 6, 12);
+  const total = clampInteger(body.total, boardSize * boardSize, boardSize * boardSize);
+  const filled = clampInteger(body.filled, 0, total);
+  const turns = clampInteger(body.turns, 0, 9999);
+  const finishType = body.finishType === "clear" ? "clear" : "surrender";
+  const name = sanitizePlayerName(body.name);
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const rankScore = String(999999999 - score).padStart(9, "0");
+  const key = `score:${boardSize}:${rankScore}:${Date.now()}:${id}`;
+  const record = { id, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
+
+  await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
+  return json({ ok: true, item: record }, 201);
+}
+
+async function listScores(url, env) {
+  const boardSize = clampInteger(url.searchParams.get("boardSize"), 6, 12);
+  const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
+  const items = await listScoreRecords(env, `score:${boardSize}:`, limit);
+  return json({ items });
+}
+
+async function listScoreRecords(env, prefix, limit) {
+  const out = [];
+  let cursor;
+  do {
+    const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix, cursor });
+    for (const item of page.keys) {
+      const record = await readRecord(env, item.name);
+      if (record) out.push(record);
+      if (out.length >= limit * 2) break;
+    }
+    if (out.length >= limit * 2) break;
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+
+  out.sort((a, b) => {
+    const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+    if (scoreDiff) return scoreDiff;
+    return String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+  });
+  return out.slice(0, limit);
+}
+
 async function listRecords(env, status) {
   const out = [];
   let cursor;
@@ -135,6 +185,19 @@ function isValidWord(word) {
 
 function wordKey(word) {
   return `word:${word}`;
+}
+
+function clampInteger(value, min, max) {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
+}
+
+function sanitizePlayerName(name) {
+  return String(name || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim()
+    .slice(0, 16) || "익명";
 }
 
 function json(data, status = 200) {
