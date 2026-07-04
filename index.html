@@ -647,6 +647,11 @@
       font-weight: 950;
     }
 
+    .leaderboard-list .own {
+      border-color: var(--accent);
+      background: #edf6e8;
+    }
+
     .intro-ranking {
       display: grid;
       gap: 10px;
@@ -821,6 +826,8 @@
     const DEFAULT_SIZE = 8;
     const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\/+$/, "");
     const GITHUB_ISSUE_URL = "https://github.com/magentmagent/wordsnake/issues/new";
+    const START_PARAMS = new URLSearchParams(window.location.search);
+    let returnToRootOnExit = false;
     let boardSize = DEFAULT_SIZE;
     const DIRECTIONS = {
       up: { x: 0, y: -1, label: "위" },
@@ -1037,6 +1044,7 @@
         finished: false,
         finishType: "",
         scoreUploaded: false,
+        scoreId: "",
         message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
         messageType: "ok"
       };
@@ -1058,6 +1066,7 @@
         finished: state.finished,
         finishType: state.finishType,
         scoreUploaded: state.scoreUploaded,
+        scoreId: state.scoreId,
         message: state.message,
         messageType: state.messageType
       };
@@ -1149,7 +1158,7 @@
         if (!board[cell.y][cell.x]) return false;
         return firstTurn || index > 0;
       });
-      const wordBonus = word.length;
+      const wordBonus = Math.max(0, (word.length - 1) * 2);
       const crossBonus = crossingCells.length * 2;
       const gained = newCells.length + wordBonus + crossBonus;
       return { gained, wordBonus, crossBonus, crossingCount: crossingCells.length };
@@ -1294,7 +1303,7 @@
       const filled = filledCount(state.board);
       const done = filled === state.board.length * state.board.length;
       const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
-      const scoreParts = [`+${result.score.gained}점`, `새 칸 +${result.newCells.length}`, `글자 +${result.score.wordBonus}`];
+      const scoreParts = [`+${result.score.gained}점`, `새 칸 +${result.newCells.length}`, `단어 +${result.score.wordBonus}`];
       if (result.score.crossBonus) scoreParts.push(`교차 +${result.score.crossBonus}`);
       setMessage(done ? "전체 보드 클리어! 스네이크가 빠져나갑니다." : `${ruleText}${result.word} 배치 완료. ${scoreParts.join(" · ")}`, "ok");
       els.boardInput.value = "";
@@ -1366,15 +1375,26 @@
     }
 
     function startFromUrlParams() {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("start") !== "1") return;
-      const requestedSize = Number(params.get("size")) || DEFAULT_SIZE;
+      if (START_PARAMS.get("start") !== "1") {
+        if (window.location.protocol !== "file:") {
+          window.location.replace("/");
+          return true;
+        }
+        return false;
+      }
+      returnToRootOnExit = true;
+      const requestedSize = Number(START_PARAMS.get("size")) || DEFAULT_SIZE;
       const safeSize = Math.min(12, Math.max(6, requestedSize));
       startGame(safeSize);
       window.history.replaceState({}, "", window.location.pathname);
+      return true;
     }
 
     function showIntro() {
+      if (returnToRootOnExit) {
+        window.location.href = "/";
+        return;
+      }
       els.gameScreen.classList.add("hidden");
       els.introScreen.classList.remove("hidden");
       els.boardInput.value = "";
@@ -1664,7 +1684,7 @@
       els.resultPanel.classList.remove("hidden");
       els.resultTitle.textContent = type === "clear" ? "클리어 결과" : "항복 결과";
       setScoreSubmitStatus(SUGGEST_API ? "점수를 등록할 수 있습니다." : "랭킹 서버 주소가 아직 설정되지 않았습니다.", !SUGGEST_API);
-      loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus);
+      loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
     }
 
     function renderResultPanel() {
@@ -1693,7 +1713,7 @@
       els.scoreSubmitStatus.classList.toggle("error", isError);
     }
 
-    function renderLeaderboard(listEl, items) {
+    function renderLeaderboard(listEl, items, ownRank = null, ownItem = null) {
       listEl.innerHTML = "";
       if (!items.length) {
         const empty = document.createElement("li");
@@ -1704,17 +1724,30 @@
       items.forEach((item, index) => {
         const row = document.createElement("li");
         const finish = item.finishType === "clear" ? "클리어" : "항복";
+        const isOwn = ownItem && item.id === ownItem.id;
+        if (isOwn) row.classList.add("own");
         row.innerHTML = `
           <span class="rank">${index + 1}</span>
           <span class="name"></span>
           <span class="score-value">${Number(item.score || 0).toLocaleString("ko-KR")}점</span>
         `;
-        row.querySelector(".name").textContent = `${item.name || "익명"} · ${finish}`;
+        row.querySelector(".name").textContent = `${item.name || "익명"} · ${finish}${isOwn ? " · 내 순위" : ""}`;
         listEl.appendChild(row);
       });
+      if (!ownItem || !ownRank || ownRank <= items.length) return;
+      const row = document.createElement("li");
+      row.classList.add("own");
+      const finish = ownItem.finishType === "clear" ? "클리어" : "항복";
+      row.innerHTML = `
+        <span class="rank">${ownRank}</span>
+        <span class="name"></span>
+        <span class="score-value">${Number(ownItem.score || 0).toLocaleString("ko-KR")}점</span>
+      `;
+      row.querySelector(".name").textContent = `${ownItem.name || "익명"} · ${finish} · 내 순위`;
+      listEl.appendChild(row);
     }
 
-    async function loadLeaderboard(size, listEl, setStatus) {
+    async function loadLeaderboard(size, listEl, setStatus, ownId = "") {
       const boardSizeForRank = Number(size) || DEFAULT_SIZE;
       if (!SUGGEST_API) {
         renderLeaderboard(listEl, []);
@@ -1723,10 +1756,11 @@
       }
       try {
         const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10" });
+        if (ownId) params.set("id", ownId);
         const response = await fetch(`${SUGGEST_API}/scores?${params.toString()}`, { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "랭킹을 불러오지 못했습니다.");
-        renderLeaderboard(listEl, Array.isArray(data.items) ? data.items : []);
+        renderLeaderboard(listEl, Array.isArray(data.items) ? data.items : [], data.ownRank, data.ownItem);
         if (setStatus) setStatus("");
       } catch (error) {
         if (setStatus) setStatus(error.message || "랭킹을 불러오지 못했습니다.", true);
@@ -1780,8 +1814,9 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "점수 등록에 실패했습니다.");
         state.scoreUploaded = true;
+        state.scoreId = data.item && data.item.id ? data.item.id : "";
         setScoreSubmitStatus("점수가 등록되었습니다.");
-        await loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus);
+        await loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
       } catch (error) {
         setScoreSubmitStatus(error.message || "점수 등록에 실패했습니다.", true);
       } finally {
@@ -1906,10 +1941,10 @@
       buildClearAnimation
     };
 
-    render();
     initAds();
+    const startedFromUrl = startFromUrlParams();
+    if (!startedFromUrl) render();
     loadDefaultDictionary();
-    startFromUrlParams();
   </script>
 </body>
 </html>

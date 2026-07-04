@@ -119,11 +119,16 @@ async function createScore(request, env) {
 async function listScores(url, env) {
   const boardSize = clampInteger(url.searchParams.get("boardSize"), 6, 12);
   const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
-  const items = await listScoreRecords(env, `score:${boardSize}:`, limit);
-  return json({ items });
+  const id = String(url.searchParams.get("id") || "").trim();
+  const records = await listScoreRecords(env, `score:${boardSize}:`);
+  const items = records.slice(0, limit);
+  const ownIndex = id ? records.findIndex(item => item.id === id) : -1;
+  const ownRank = ownIndex >= 0 ? ownIndex + 1 : null;
+  const ownItem = ownIndex >= 0 ? records[ownIndex] : null;
+  return json({ items, ownRank, ownItem });
 }
 
-async function listScoreRecords(env, prefix, limit) {
+async function listScoreRecords(env, prefix) {
   const out = [];
   let cursor;
   do {
@@ -131,9 +136,7 @@ async function listScoreRecords(env, prefix, limit) {
     for (const item of page.keys) {
       const record = await readRecord(env, item.name);
       if (record) out.push(record);
-      if (out.length >= limit * 2) break;
     }
-    if (out.length >= limit * 2) break;
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
 
@@ -142,7 +145,7 @@ async function listScoreRecords(env, prefix, limit) {
     if (scoreDiff) return scoreDiff;
     return String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
   });
-  return out.slice(0, limit);
+  return out;
 }
 
 async function listRecords(env, status) {
