@@ -913,7 +913,8 @@
 
       const filled = filledCount(state.board);
       const done = filled === state.board.length * state.board.length;
-      setMessage(done ? "전체 보드 클리어!" : `${result.word} 배치 완료. 새 칸 ${result.newCells.length}개.`, "ok");
+      const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
+      setMessage(done ? "전체 보드 클리어!" : `${ruleText}${result.word} 배치 완료. 새 칸 ${result.newCells.length}개.`, "ok");
       els.boardInput.value = "";
       lastMissingWord = "";
       render();
