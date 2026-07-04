@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="끝말잇기, 스네이크 이동, 글자 교차를 합친 모바일 한글 단어 퍼즐 게임입니다.">
+  <meta name="theme-color" content="#f6f3ea">
+  <meta property="og:title" content="wordsnake">
+  <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://magentmagent.github.io/">
+  <title>wordsnake</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f3ea;
+      --ink: #202327;
+      --muted: #68707a;
+      --panel: #fffdf8;
+      --line: #d8d0c3;
+      --cell: #fffaf0;
+      --cell-filled: #dff1ee;
+      --accent: #197278;
+      --head: #f6bd60;
+      --start: #8ab17d;
+      --shadow: 0 12px 30px rgba(36, 38, 43, 0.12);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .app {
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .screen {
+      min-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.3rem, 13vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .intro-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .rule-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--ink);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .rule-list li {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .rule-list p {
+      margin: 0;
+    }
+
+    .rule-list b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+
+    .rule-list span {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .mini-board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      width: 88px;
+      aspect-ratio: 1;
+    }
+
+    .mini-cell {
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--cell);
+      font-size: 0.73rem;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    .mini-cell.fill {
+      background: var(--cell-filled);
+      border-color: #9fc7c0;
+    }
+
+    .mini-cell.head {
+      background: var(--head);
+      border-color: #d4932b;
+    }
+
+    .mini-cell.start {
+      outline: 2px solid var(--start);
+      outline-offset: -2px;
+    }
+
+    .mini-cell.next,
+    .mini-cell.back {
+      background: #edf6e8;
+      border-color: var(--start);
+      color: #3f6b38;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .button {
+      min-height: 54px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .site-links {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .site-links a {
+      color: var(--accent);
+      font-weight: 800;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="screen">
+      <div>
+        <h1>wordsnake</h1>
+        <p class="intro-copy">끝말잇기처럼 이어 붙이고, 스네이크처럼 칸을 타고 움직입니다.</p>
+      </div>
+
+      <div class="panel">
+        <ul class="rule-list">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell start fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">가</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">용</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>기본 규칙</b><span>바다사자 다음에는 머리 글자 자가 자동으로 붙고, 가용만 입력해 자가용을 놓습니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">상</i><i class="mini-cell next">석</i><i class="mini-cell"></i>
+              <i class="mini-cell fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">병</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>통과하기</b><span>상사병처럼 새 단어가 기존 사 칸을 지나도, 글자가 같으면 통과할 수 있습니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">미</i><i class="mini-cell"></i>
+              <i class="mini-cell fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">가</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>되돌아가기</b><span>직전 방향을 반복할 수는 없지만, 반대쪽으로 돌아가며 이어 붙일 수 있습니다.</span></p>
+          </li>
+        </ul>
+      </div>
+
+      <div class="panel controls">
+        <a class="button" href="/wordsnake/">시작</a>
+        <p class="intro-copy">칸 수와 랭킹은 게임 화면에서 선택할 수 있습니다.</p>
+      </div>
+
+      <p class="site-links">
+        Dictionary data includes NIKL Standard Korean Dictionary and Kaikki/Wiktionary-derived data.
+        <a href="/wordsnake/NOTICE.md">Notice</a> · <a href="/wordsnake/privacy.html">Privacy</a>
+      </p>
+    </section>
+  </div>
+</body>
+</html>
