@@ -359,10 +359,53 @@
       animation: pop 420ms ease;
     }
 
+    .cell.clear-cell {
+      position: relative;
+      z-index: 3;
+      pointer-events: none;
+      animation: snakeClear 720ms ease-in forwards;
+      animation-delay: var(--clear-delay, 0ms);
+    }
+
+    .cell.clear-exit-cell {
+      animation-name: snakeExit;
+      animation-duration: 900ms;
+    }
+
     @keyframes pop {
       0% { transform: scale(0.86); }
       55% { transform: scale(1.06); }
       100% { transform: scale(1); }
+    }
+
+    @keyframes snakeClear {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      45% {
+        transform: translate(calc(var(--clear-x, 0) * 22%), calc(var(--clear-y, 0) * 22%)) scale(0.94);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(calc(var(--clear-x, 0) * 88%), calc(var(--clear-y, 0) * 88%)) scale(0.52);
+        opacity: 0;
+      }
+    }
+
+    @keyframes snakeExit {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: translate(calc(var(--clear-x, 0) * 55%), calc(var(--clear-y, 0) * 55%)) scale(0.98);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(calc(var(--clear-x, 0) * 210%), calc(var(--clear-y, 0) * 210%)) scale(0.7);
+        opacity: 0;
+      }
     }
 
     .panel {
@@ -763,6 +806,7 @@
     let state = initialState();
     let undoStack = [];
     let newCellsForAnimation = [];
+    let clearAnimation = null;
     let lastMissingWord = "";
 
     const els = {
@@ -795,6 +839,7 @@
         score: 0,
         usedWords: [],
         log: [],
+        snakeTrail: [],
         initialLawMarks: [],
         message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
         messageType: "ok"
@@ -812,6 +857,7 @@
         score: state.score,
         usedWords: state.usedWords.slice(),
         log: state.log.map(item => ({ ...item })),
+        snakeTrail: state.snakeTrail.map(item => ({ ...item })),
         initialLawMarks: state.initialLawMarks.map(item => ({ ...item })),
         message: state.message,
         messageType: state.messageType
@@ -826,8 +872,38 @@
         head: snapshot.head ? { ...snapshot.head } : null,
         usedWords: (snapshot.usedWords || []).slice(),
         log: snapshot.log.map(item => ({ ...item })),
+        snakeTrail: (snapshot.snakeTrail || []).map(item => ({ ...item })),
         initialLawMarks: (snapshot.initialLawMarks || []).map(item => ({ ...item }))
       };
+    }
+
+    function routeCellsForPlacement(placement, firstTurn) {
+      const route = firstTurn ? placement.path : placement.path.slice(1);
+      return route.map(cell => ({ x: cell.x, y: cell.y }));
+    }
+
+    function buildClearAnimation(trail, exitDir) {
+      const latest = new Map();
+      for (let i = 0; i < trail.length; i += 1) {
+        const cell = trail[i];
+        const next = trail[i + 1];
+        const key = `${cell.x},${cell.y}`;
+        const dx = next ? Math.max(-1, Math.min(1, next.x - cell.x)) : exitDir.x;
+        const dy = next ? Math.max(-1, Math.min(1, next.y - cell.y)) : exitDir.y;
+        latest.set(key, { index: i, x: dx, y: dy, exit: i === trail.length - 1 });
+      }
+
+      const frames = new Map();
+      const ordered = [...latest.entries()].sort((a, b) => a[1].index - b[1].index);
+      for (const [key, frame] of ordered) {
+        frames.set(key, {
+          order: frames.size,
+          x: frame.x,
+          y: frame.y,
+          exit: frame.exit
+        });
+      }
+      return frames;
     }
 
     function scorePlacement(board, path, newCells, word, firstTurn) {
@@ -835,10 +911,10 @@
         if (!board[cell.y][cell.x]) return false;
         return firstTurn || index > 0;
       });
-      const lengthBonus = Math.max(0, word.length - 3);
+      const wordBonus = word.length;
       const crossBonus = crossingCells.length * 2;
-      const gained = newCells.length + lengthBonus + crossBonus;
-      return { gained, lengthBonus, crossBonus, crossingCount: crossingCells.length };
+      const gained = newCells.length + wordBonus + crossBonus;
+      return { gained, wordBonus, crossBonus, crossingCount: crossingCells.length };
     }
 
     function validatePlacement(board, gameState, rawWord, dir) {
@@ -944,6 +1020,7 @@
       state.turn += 1;
       state.score += result.score.gained;
       state.usedWords.push(result.word);
+      state.snakeTrail.push(...routeCellsForPlacement(result, state.turn === 1));
       state.log.unshift({
         word: result.word,
         dir: state.selectedDir,
@@ -960,9 +1037,12 @@
 
       const filled = filledCount(state.board);
       const done = filled === state.board.length * state.board.length;
+      if (done) {
+        const exitDir = DIRECTIONS[state.lastDir] || { x: 1, y: 0 };
+        clearAnimation = buildClearAnimation(state.snakeTrail, exitDir);
+      }
       const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
-      const scoreParts = [`+${result.score.gained}점`];
-      if (result.score.lengthBonus) scoreParts.push(`긴 단어 +${result.score.lengthBonus}`);
+      const scoreParts = [`+${result.score.gained}점`, `새 칸 +${result.newCells.length}`, `글자 +${result.score.wordBonus}`];
       if (result.score.crossBonus) scoreParts.push(`교차 +${result.score.crossBonus}`);
       setMessage(done ? "전체 보드 클리어!" : `${ruleText}${result.word} 배치 완료. ${scoreParts.join(" · ")}`, "ok");
       els.boardInput.value = "";
@@ -994,6 +1074,7 @@
       }
       restoreState(snapshot);
       newCellsForAnimation = [];
+      clearAnimation = null;
       setMessage("한 턴 되돌렸습니다.", "ok");
       render();
     }
@@ -1002,6 +1083,7 @@
       state = initialState();
       undoStack = [];
       newCellsForAnimation = [];
+      clearAnimation = null;
       els.boardInput.value = "";
       render();
       focusBoardInput();
@@ -1020,6 +1102,7 @@
       els.gameScreen.classList.add("hidden");
       els.introScreen.classList.remove("hidden");
       els.boardInput.value = "";
+      clearAnimation = null;
     }
 
     function focusBoardInput() {
@@ -1166,6 +1249,14 @@
             if (state.selectedDir === nextDir) button.classList.add("selected-next");
           }
           if (animated.has(`${x},${y}`)) button.classList.add("new-cell");
+          const clearFrame = clearAnimation && clearAnimation.get(key);
+          if (clearFrame) {
+            button.classList.add("clear-cell");
+            if (clearFrame.exit) button.classList.add("clear-exit-cell");
+            button.style.setProperty("--clear-delay", `${clearFrame.order * 52}ms`);
+            button.style.setProperty("--clear-x", String(clearFrame.x));
+            button.style.setProperty("--clear-y", String(clearFrame.y));
+          }
           button.addEventListener("click", () => {
             if (selectDirectionCell(x, y)) return;
             selectStart(x, y);
@@ -1330,7 +1421,9 @@
       initialLawReadings,
       wordCandidatesForInput,
       validatePlacement,
-      applyPlacement
+      applyPlacement,
+      routeCellsForPlacement,
+      buildClearAnimation
     };
 
     render();
