@@ -363,49 +363,13 @@
       position: relative;
       z-index: 3;
       pointer-events: none;
-      animation: snakeClear 820ms ease-in-out forwards;
-      animation-delay: var(--clear-delay, 0ms);
-    }
-
-    .cell.clear-exit-cell {
-      animation-name: snakeExit;
-      animation-duration: 900ms;
+      will-change: transform;
     }
 
     @keyframes pop {
       0% { transform: scale(0.86); }
       55% { transform: scale(1.06); }
       100% { transform: scale(1); }
-    }
-
-    @keyframes snakeClear {
-      0% {
-        transform: translate(0, 0) scale(1);
-        opacity: 1;
-      }
-      45% {
-        transform: translate(calc(var(--clear-x, 0) * 44%), calc(var(--clear-y, 0) * 44%)) scale(0.98);
-        opacity: 1;
-      }
-      100% {
-        transform: translate(calc(var(--clear-x, 0) * 104%), calc(var(--clear-y, 0) * 104%)) scale(0.96);
-        opacity: 1;
-      }
-    }
-
-    @keyframes snakeExit {
-      0% {
-        transform: translate(0, 0) scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: translate(calc(var(--clear-x, 0) * 55%), calc(var(--clear-y, 0) * 55%)) scale(0.98);
-        opacity: 1;
-      }
-      100% {
-        transform: translate(calc(var(--clear-x, 0) * 230%), calc(var(--clear-y, 0) * 230%)) scale(0.9);
-        opacity: 1;
-      }
     }
 
     .panel {
@@ -883,32 +847,50 @@
       return route.map(cell => ({ x: cell.x, y: cell.y }));
     }
 
-    function buildClearAnimation(trail, exitDir) {
+    function exitDirectionForTrail(trail, size) {
+      const start = trail[0];
+      const next = trail[1];
+      if (next && start.x !== next.x) return { x: start.x - next.x, y: 0 };
+      if (next && start.y !== next.y) return { x: 0, y: start.y - next.y };
+      if (start.x === 0) return { x: -1, y: 0 };
+      if (start.x === size - 1) return { x: 1, y: 0 };
+      if (start.y === 0) return { x: 0, y: -1 };
+      if (start.y === size - 1) return { x: 0, y: 1 };
+      return { x: 1, y: 0 };
+    }
+
+    function buildClearAnimation(trail, size) {
+      if (!trail.length) return new Map();
+      const exitDir = exitDirectionForTrail(trail, size);
+      const exitCell = { x: trail[0].x + exitDir.x, y: trail[0].y + exitDir.y };
       const latest = new Map();
       for (let i = 0; i < trail.length; i += 1) {
         const cell = trail[i];
-        const next = trail[i + 1];
         const key = `${cell.x},${cell.y}`;
-        const dx = next ? Math.max(-1, Math.min(1, next.x - cell.x)) : exitDir.x;
-        const dy = next ? Math.max(-1, Math.min(1, next.y - cell.y)) : exitDir.y;
-        latest.set(key, { index: i, x: dx, y: dy, exit: i === trail.length - 1 });
+        latest.set(key, { index: i, cell });
       }
 
       const frames = new Map();
-      const ordered = [...latest.entries()].sort((a, b) => b[1].index - a[1].index);
+      const ordered = [...latest.entries()].sort((a, b) => a[1].index - b[1].index);
       for (const [key, frame] of ordered) {
+        const cellPath = trail.slice(0, frame.index + 1).reverse().concat(exitCell);
         frames.set(key, {
-          order: frames.size,
-          x: frame.x,
-          y: frame.y,
-          exit: frame.exit
+          order: frame.index,
+          path: cellPath.map(cell => ({
+            x: cell.x - frame.cell.x,
+            y: cell.y - frame.cell.y
+          }))
         });
       }
       return frames;
     }
 
     function clearAnimationTime(frames) {
-      return (Math.max(0, frames.size - 1) * 70) + 980;
+      let maxTime = 0;
+      for (const frame of frames.values()) {
+        maxTime = Math.max(maxTime, (frame.order * 95) + (frame.path.length * 150));
+      }
+      return maxTime + 180;
     }
 
     function startSnakeExit(message, returnToIntro = false) {
@@ -917,8 +899,7 @@
         return;
       }
       if (clearTimer) window.clearTimeout(clearTimer);
-      const exitDir = DIRECTIONS[state.lastDir] || { x: 1, y: 0 };
-      clearAnimation = buildClearAnimation(state.snakeTrail, exitDir);
+      clearAnimation = buildClearAnimation(state.snakeTrail, state.board.length);
       setMessage(message, "ok");
       render();
       if (returnToIntro) {
@@ -1255,6 +1236,26 @@
       button.appendChild(to);
     }
 
+    function clearTransformForStep(step) {
+      return `translate(calc(${step.x} * (100% + 3px)), calc(${step.y} * (100% + 3px)))`;
+    }
+
+    function applyClearFlowAnimations() {
+      if (!clearAnimation) return;
+      const cells = els.board.querySelectorAll(".clear-cell");
+      for (const cell of cells) {
+        const frame = clearAnimation.get(cell.dataset.clearKey);
+        if (!frame || !frame.path.length) continue;
+        const keyframes = frame.path.map(step => ({ transform: clearTransformForStep(step), opacity: 1 }));
+        cell.animate(keyframes, {
+          duration: Math.max(360, frame.path.length * 150),
+          delay: frame.order * 95,
+          easing: "linear",
+          fill: "forwards"
+        });
+      }
+    }
+
     function renderBoard() {
       els.board.innerHTML = "";
       const animated = new Set(newCellsForAnimation);
@@ -1299,10 +1300,7 @@
           const clearFrame = clearAnimation && clearAnimation.get(key);
           if (clearFrame) {
             button.classList.add("clear-cell");
-            if (clearFrame.exit) button.classList.add("clear-exit-cell");
-            button.style.setProperty("--clear-delay", `${clearFrame.order * 70}ms`);
-            button.style.setProperty("--clear-x", String(clearFrame.x));
-            button.style.setProperty("--clear-y", String(clearFrame.y));
+            button.dataset.clearKey = key;
           }
           button.addEventListener("click", () => {
             if (selectDirectionCell(x, y)) return;
@@ -1312,6 +1310,10 @@
         }
       }
       newCellsForAnimation = [];
+      if (clearAnimation) {
+        const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+        schedule(applyClearFlowAnimations);
+      }
     }
 
     function renderScore() {
