@@ -1375,18 +1375,11 @@
     }
 
     function startFromUrlParams() {
-      if (START_PARAMS.get("start") !== "1") {
-        if (window.location.protocol !== "file:") {
-          window.location.replace("/");
-          return true;
-        }
-        return false;
-      }
-      returnToRootOnExit = true;
+      returnToRootOnExit = window.location.protocol !== "file:";
       const requestedSize = Number(START_PARAMS.get("size")) || DEFAULT_SIZE;
       const safeSize = Math.min(12, Math.max(6, requestedSize));
       startGame(safeSize);
-      window.history.replaceState({}, "", window.location.pathname);
+      if (window.location.search) window.history.replaceState({}, "", window.location.pathname);
       return true;
     }
 
