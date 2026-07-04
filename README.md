@@ -101,3 +101,13 @@ Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktio
 - 첫 화면의 Notice/Privacy 링크를 유지합니다.
 - 광고/분석 서비스를 넣는 경우 `privacy.html`을 실제 서비스 정책에 맞게 갱신합니다.
 - 사전 데이터는 코드와 별도 산출물로 취급하고, Kaikki/Wiktionary-derived 데이터의 CC BY-SA 조건을 검토합니다.
+
+## 사용자 단어 제안
+
+게임에서 사전에 없는 단어를 입력하면 단어 제안 패널이 표시됩니다. 기본 상태에서는 GitHub 이슈 작성 화면으로 연결되고, `public/suggest-config.js`에 제안 서버 URL을 넣으면 서버로 직접 제출됩니다.
+
+승인형 서버 예시는 `server/cloudflare-worker.js`에 있습니다. 같은 단어가 여러 번 제출되면 서버에서 하나의 항목으로 합치고 `count`만 올립니다. 관리자는 `admin.html`에서 대기 단어를 보고 승인하거나 거절할 수 있습니다. 승인된 단어는 게임 시작 시 서버의 `/words`에서 추가로 불러와 사전에 합쳐집니다.
+
+```js
+window.WORDSNAKE_SUGGEST_API = "https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev";
+```

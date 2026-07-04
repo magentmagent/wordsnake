@@ -1,0 +1,10 @@
+name = "wordsnake-suggestions"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-07-04"
+
+[[kv_namespaces]]
+binding = "WORDSNAKE_SUGGESTIONS"
+id = "ec7d8282b4f4481aa4b7cbcc1ce85e33"
+
+# Set ADMIN_TOKEN as a secret:
+# wrangler secret put ADMIN_TOKEN

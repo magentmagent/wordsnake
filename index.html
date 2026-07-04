@@ -330,6 +330,51 @@
       color: var(--accent-2);
     }
 
+    .suggest-panel {
+      display: grid;
+      gap: 7px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .suggest-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .suggest-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .suggest-word {
+      min-width: 0;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #f4ead9;
+      color: var(--ink);
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .suggest-status {
+      min-height: 1.3em;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .suggest-status.error {
+      color: var(--accent-2);
+    }
+
     .controls {
       display: grid;
       gap: 12px;
@@ -509,6 +554,14 @@
 
       <section class="game-actions">
         <p id="message" class="message">가장자리 빈 칸을 터치해 시작점을 고르세요.</p>
+        <div id="suggestPanel" class="suggest-panel hidden">
+          <p>사전에 없는 단어라면 등록을 제안할 수 있습니다. 관리자가 승인한 뒤에만 게임 사전에 추가됩니다.</p>
+          <div class="suggest-row">
+            <strong id="suggestWord" class="suggest-word"></strong>
+            <button id="suggestBtn" class="button" type="button">제안</button>
+          </div>
+          <span id="suggestStatus" class="suggest-status"></span>
+        </div>
         <button id="placeBtn" class="button primary large" type="button">놓기</button>
         <div class="action-row">
           <button id="undoBtn" class="button" type="button">되돌리기</button>
@@ -519,8 +572,11 @@
   </div>
 
   <script src="public/words-data.js"></script>
+  <script src="public/suggest-config.js"></script>
   <script>
     const DEFAULT_SIZE = 8;
+    const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\/+$/, "");
+    const GITHUB_ISSUE_URL = "https://github.com/magentmagent/wordsnake/issues/new";
     let boardSize = DEFAULT_SIZE;
     const DIRECTIONS = {
       up: { x: 0, y: -1, label: "위" },
@@ -583,6 +639,7 @@
     let state = initialState();
     let undoStack = [];
     let newCellsForAnimation = [];
+    let lastMissingWord = "";
 
     const els = {
       board: document.querySelector("#board"),
@@ -590,6 +647,10 @@
       message: document.querySelector("#message"),
       boardInput: document.querySelector("#boardInput"),
       placeBtn: document.querySelector("#placeBtn"),
+      suggestPanel: document.querySelector("#suggestPanel"),
+      suggestWord: document.querySelector("#suggestWord"),
+      suggestBtn: document.querySelector("#suggestBtn"),
+      suggestStatus: document.querySelector("#suggestStatus"),
       undoBtn: document.querySelector("#undoBtn"),
       newBtn: document.querySelector("#newBtn"),
       sizeSelect: document.querySelector("#sizeSelect"),
@@ -643,7 +704,9 @@
       if (!delta) return { ok: false, message: "방향을 선택하세요." };
       if (!isKoreanWord(word)) return { ok: false, message: "순수 한글 음절 단어만 사용할 수 있습니다." };
       if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
-      if (!dictionary.wordSet.has(word)) return { ok: false, message: "현재 사전에 없는 단어입니다." };
+      if (!dictionary.wordSet.has(word)) {
+        return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
+      }
       if (!gameState.start) return { ok: false, message: "먼저 가장자리 시작 칸을 선택하세요." };
       if (gameState.lastDir && gameState.lastDir === dir) return { ok: false, message: "직전 방향과 같은 방향으로는 이동할 수 없습니다." };
 
@@ -713,11 +776,13 @@
       const word = currentInputWord();
       const result = validatePlacement(state.board, state, word, state.selectedDir);
       if (!result.ok) {
+        lastMissingWord = result.code === "missing-word" ? result.word : "";
         setMessage(result.message, "error");
         render();
         return;
       }
 
+      lastMissingWord = "";
       undoStack.push(snapshotState());
       state.board = applyPlacement(state.board, result);
       state.head = result.end;
@@ -736,6 +801,7 @@
       const done = filled === state.board.length * state.board.length;
       setMessage(done ? "전체 보드 클리어!" : `${result.word} 배치 완료. 새 칸 ${result.newCells.length}개.`, "ok");
       els.boardInput.value = "";
+      lastMissingWord = "";
       render();
       focusBoardInput();
     }
@@ -911,6 +977,7 @@
     function render() {
       els.message.textContent = state.message;
       els.message.classList.toggle("error", state.messageType === "error");
+      renderSuggestionPanel();
       renderBoard();
       renderScore();
     }
@@ -919,11 +986,102 @@
       dictionary = buildDictionary(text.split(/\r?\n/));
     }
 
+    function addWordsToDictionary(text) {
+      for (const raw of text.split(/\r?\n/)) {
+        const word = normalizeWord(raw);
+        if (isValidWordShape(word)) dictionary.wordSet.add(word);
+      }
+    }
+
+    function renderSuggestionPanel() {
+      const word = lastMissingWord;
+      const visible = Boolean(word && isValidWordShape(word) && !dictionary.wordSet.has(word));
+      els.suggestPanel.classList.toggle("hidden", !visible);
+      if (!visible) {
+        els.suggestWord.textContent = "";
+        els.suggestStatus.textContent = "";
+        els.suggestStatus.classList.remove("error");
+        return;
+      }
+      els.suggestWord.textContent = word;
+    }
+
+    function setSuggestStatus(message, isError = false) {
+      els.suggestStatus.textContent = message;
+      els.suggestStatus.classList.toggle("error", isError);
+    }
+
+    function openGithubSuggestion(word) {
+      const params = new URLSearchParams({
+        title: `단어 제안: ${word}`,
+        body: `제안 단어: ${word}\n\n게임에서 사전에 없는 단어로 확인되어 등록을 제안합니다.`
+      });
+      window.open(`${GITHUB_ISSUE_URL}?${params.toString()}`, "_blank", "noopener");
+    }
+
+    async function submitWordSuggestion() {
+      const word = lastMissingWord || currentInputWord();
+      if (!isValidWordShape(word)) {
+        setSuggestStatus("순수 한글 2글자 이상 단어만 제안할 수 있습니다.", true);
+        return;
+      }
+      if (dictionary.wordSet.has(word)) {
+        setSuggestStatus("이미 현재 사전에 있는 단어입니다.");
+        return;
+      }
+
+      els.suggestBtn.disabled = true;
+      setSuggestStatus("제안 전송 중...");
+
+      if (!SUGGEST_API) {
+        openGithubSuggestion(word);
+        setSuggestStatus("서버 주소가 아직 설정되지 않아 GitHub 제안 화면을 열었습니다.");
+        els.suggestBtn.disabled = false;
+        return;
+      }
+
+      try {
+        const response = await fetch(`${SUGGEST_API}/suggestions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ word, source: "wordsnake" })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "제안 전송에 실패했습니다.");
+        if (data.status === "approved") {
+          dictionary.wordSet.add(word);
+          lastMissingWord = "";
+          setMessage(`${word}은 이미 승인된 단어입니다.`, "ok");
+          render();
+          return;
+        }
+        setSuggestStatus(data.duplicate ? "이미 대기 중인 단어입니다. 중복 제안은 하나로 합쳤습니다." : "제안이 등록되었습니다. 승인 후 사전에 추가됩니다.");
+      } catch (error) {
+        setSuggestStatus(error.message || "제안 전송에 실패했습니다.", true);
+      } finally {
+        els.suggestBtn.disabled = false;
+      }
+    }
+
+    async function loadApprovedServerWords() {
+      if (!SUGGEST_API) return;
+      try {
+        const response = await fetch(`${SUGGEST_API}/words`, { cache: "no-store" });
+        if (!response.ok) return;
+        addWordsToDictionary(await response.text());
+        els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
+        render();
+      } catch {
+        // The base dictionary is still playable when the suggestion server is unavailable.
+      }
+    }
+
     async function loadDefaultDictionary() {
       if (typeof window.WORDSNAKE_WORDS === "string" && window.WORDSNAKE_WORDS.trim()) {
         loadDictionaryFromText(window.WORDSNAKE_WORDS);
         els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
         render();
+        loadApprovedServerWords();
         return;
       }
 
@@ -932,6 +1090,7 @@
         if (!response.ok) return;
         loadDictionaryFromText(await response.text());
         els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
+        loadApprovedServerWords();
         render();
       } catch {
         els.dictStatus.textContent = "사전을 불러오지 못했습니다.";
@@ -941,6 +1100,7 @@
 
     els.startBtn.addEventListener("click", startGame);
     els.placeBtn.addEventListener("click", placeCurrentWord);
+    els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", showIntro);
     els.board.addEventListener("click", focusBoardInput);

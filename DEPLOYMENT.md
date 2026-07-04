@@ -96,3 +96,21 @@ Auto ads may be convenient, but manual placement is usually safer for a game UI 
 The code can be published as a static game, but the dictionary data has separate source and license considerations. Keep `NOTICE.md` with the release, and review the current terms for the National Institute of Korean Language data and Kaikki/Wiktionary-derived data before treating the dictionary bundle as a commercial asset.
 
 This document is practical deployment guidance, not legal advice.
+
+## Optional Word Suggestion Server
+
+GitHub Pages cannot store user submissions by itself. To let players suggest missing words and require admin approval, deploy the Cloudflare Worker example in `server/cloudflare-worker.js`.
+
+High-level setup:
+
+1. Create a Cloudflare account.
+2. Install Wrangler locally.
+3. Create a KV namespace for suggestions.
+4. Copy `server/wrangler.toml.example` to `server/wrangler.toml`.
+5. Replace `YOUR_KV_NAMESPACE_ID` with the real KV namespace ID.
+6. Set an admin token with `wrangler secret put ADMIN_TOKEN`.
+7. Deploy the worker with `wrangler deploy`.
+8. Put the worker URL in `public/suggest-config.js`.
+9. Visit `admin.html`, enter the worker URL and admin token, then approve or reject pending words.
+
+The worker keeps one record per word. Duplicate player submissions increase the record count instead of creating duplicate pending rows.
