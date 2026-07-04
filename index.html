@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="끝말잇기, 스네이크 이동, 글자 교차를 합친 모바일 한글 단어 퍼즐 게임입니다.">
+  <meta name="theme-color" content="#f6f3ea">
+  <meta property="og:title" content="wordsnake">
+  <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
+  <meta property="og:type" content="website">
+  <title>wordsnake</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f3ea;
+      --ink: #202327;
+      --muted: #68707a;
+      --panel: #fffdf8;
+      --line: #d8d0c3;
+      --cell: #fffaf0;
+      --cell-filled: #dff1ee;
+      --accent: #197278;
+      --accent-2: #c44536;
+      --head: #f6bd60;
+      --start: #8ab17d;
+      --shadow: 0 12px 30px rgba(36, 38, 43, 0.12);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .screen {
+      min-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .intro {
+      justify-content: center;
+    }
+
+    .intro h1 {
+      margin: 0;
+      font-size: clamp(2.3rem, 13vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .intro-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .rule-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--ink);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .rule-list li {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .rule-list p {
+      margin: 0;
+    }
+
+    .rule-list b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+
+    .rule-list span {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .mini-board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 2px;
+      width: 88px;
+      aspect-ratio: 1 / 1;
+      padding: 2px;
+      border-radius: 8px;
+      background: #5e6472;
+    }
+
+    .mini-cell {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      border-radius: 4px;
+      background: #fffaf0;
+      color: var(--ink);
+      font-size: 0.72rem;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .mini-cell.fill {
+      background: var(--cell-filled);
+    }
+
+    .mini-cell.start {
+      box-shadow: inset 0 0 0 2px var(--start);
+    }
+
+    .mini-cell.head {
+      background: var(--head);
+    }
+
+    .mini-cell.next {
+      background: #bfdbfe;
+      box-shadow: inset 0 0 0 2px var(--accent);
+    }
+
+    .mini-cell.pass {
+      outline: 2px solid #3b82f6;
+      outline-offset: -3px;
+    }
+
+    .mini-cell.back {
+      background: #fce7f3;
+      box-shadow: inset 0 0 0 2px #be185d;
+    }
+
+    .game-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+    }
+
+    .score {
+      text-align: center;
+      font-weight: 800;
+      color: var(--accent);
+      white-space: nowrap;
+      font-size: clamp(1.5rem, 8vw, 2.25rem);
+      line-height: 1;
+    }
+
+    .score span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .board-wrap {
+      width: 100%;
+      margin-top: 2px;
+    }
+
+    .board-stage {
+      position: relative;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(var(--board-size, 8), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--board-size, 8), minmax(0, 1fr));
+      aspect-ratio: 1 / 1;
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      border: 2px solid #5e6472;
+      background: #5e6472;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .board-input {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .cell {
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      line-height: 1;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 5px;
+      background: var(--cell);
+      color: var(--ink);
+      font-size: clamp(0.72rem, calc(54vw / var(--board-size, 8)), 2rem);
+      font-weight: 800;
+      touch-action: manipulation;
+      transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .cell.edge:not(.filled) {
+      background: #f4ead9;
+    }
+
+    .cell.filled {
+      background: var(--cell-filled);
+    }
+
+    .cell.start {
+      box-shadow: inset 0 0 0 4px var(--start);
+    }
+
+    .cell.head {
+      background: var(--head);
+      box-shadow: inset 0 0 0 4px #9c6644;
+    }
+
+    .cell.next-cell {
+      background: #dbeafe;
+      box-shadow: inset 0 0 0 4px #2563eb;
+    }
+
+    .cell.next-cell.selected-next {
+      background: #bfdbfe;
+      box-shadow: inset 0 0 0 4px var(--accent);
+    }
+
+    .cell.preview-cell:not(.filled) {
+      background: #eef6ff;
+      color: #153e75;
+    }
+
+    .cell.preview-cell.filled {
+      outline: 3px solid #3b82f6;
+      outline-offset: -5px;
+    }
+
+    .cell.conflict-cell {
+      background: #ffe4df;
+      color: var(--accent-2);
+      box-shadow: inset 0 0 0 4px var(--accent-2);
+    }
+
+    .cell.new-cell {
+      animation: pop 420ms ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.86); }
+      55% { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 4px 14px rgba(36, 38, 43, 0.06);
+    }
+
+    .message {
+      min-height: 1.5em;
+      margin: 0;
+      padding: 10px 11px;
+      border-radius: 8px;
+      background: #edf7f5;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .message.error {
+      background: #fff1ed;
+      color: var(--accent-2);
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .settings-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .field select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .button {
+      min-height: 44px;
+      border: 1px solid #59656f;
+      border-radius: 8px;
+      padding: 0 12px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .button.large {
+      width: 100%;
+      min-height: 54px;
+      font-size: 1.05rem;
+    }
+
+    .button.warn {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .action-row .button {
+      padding: 0 8px;
+      font-size: clamp(0.84rem, 3.7vw, 0.96rem);
+    }
+
+    .game-actions {
+      margin-top: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .site-links {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .site-links a {
+      color: var(--accent);
+      font-weight: 800;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section id="introScreen" class="screen intro">
+      <div>
+        <h1>wordsnake</h1>
+        <p class="intro-copy">끝말잇기처럼 이어 붙이고, 스네이크처럼 칸을 타고 움직입니다.</p>
+      </div>
+
+      <div class="panel">
+        <ul class="rule-list">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell start fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">가</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">용</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>기본 규칙</b><span>바다사자 다음에는 머리 글자 자가 자동으로 붙고, 가용만 입력해 자가용을 놓습니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">상</i><i class="mini-cell next">석</i><i class="mini-cell"></i>
+              <i class="mini-cell fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill pass">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">병</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>통과하기</b><span>상사병처럼 새 단어가 기존 사 칸을 지나도, 글자가 같으면 통과할 수 있습니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">미</i><i class="mini-cell"></i>
+              <i class="mini-cell fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill">사</i><i class="mini-cell head fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">가</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>되돌아가기</b><span>직전 방향을 반복할 수는 없지만, 반대쪽으로 돌아가며 이어 붙일 수 있습니다.</span></p>
+          </li>
+        </ul>
+      </div>
+
+      <div class="panel controls">
+        <label class="field">
+          칸 수
+          <select id="sizeSelect">
+            <option value="6">6 x 6</option>
+            <option value="7">7 x 7</option>
+            <option value="8" selected>8 x 8</option>
+            <option value="9">9 x 9</option>
+            <option value="10">10 x 10</option>
+            <option value="11">11 x 11</option>
+            <option value="12">12 x 12</option>
+          </select>
+        </label>
+        <button id="startBtn" class="button primary large" type="button">시작</button>
+        <p id="dictStatus" class="intro-copy">사전을 불러오는 중입니다.</p>
+      </div>
+
+      <p class="site-links">
+        Dictionary data includes NIKL Standard Korean Dictionary and Kaikki/Wiktionary-derived data.
+        <a href="NOTICE.md">Notice</a> · <a href="privacy.html">Privacy</a>
+      </p>
+    </section>
+
+    <main id="gameScreen" class="screen hidden">
+      <header class="game-header">
+        <div class="score">
+          <span>점수</span>
+          <strong id="scoreText">0 / 64</strong>
+        </div>
+      </header>
+
+      <section class="board-wrap" aria-label="wordsnake board">
+        <div class="board-stage">
+          <div id="board" class="board" tabindex="0"></div>
+          <input id="boardInput" class="board-input" type="text" inputmode="text" autocomplete="off" placeholder="단어 입력">
+        </div>
+      </section>
+
+      <section class="game-actions">
+        <p id="message" class="message">가장자리 빈 칸을 터치해 시작점을 고르세요.</p>
+        <button id="placeBtn" class="button primary large" type="button">놓기</button>
+        <div class="action-row">
+          <button id="undoBtn" class="button" type="button">되돌리기</button>
+          <button id="newBtn" class="button warn" type="button">처음으로</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="public/words-data.js"></script>
+  <script>
+    const DEFAULT_SIZE = 8;
+    let boardSize = DEFAULT_SIZE;
+    const DIRECTIONS = {
+      up: { x: 0, y: -1, label: "위" },
+      down: { x: 0, y: 1, label: "아래" },
+      left: { x: -1, y: 0, label: "왼쪽" },
+      right: { x: 1, y: 0, label: "오른쪽" }
+    };
+
+    const FALLBACK_WORDS = [
+      "가게", "가격", "가구", "가로수", "가방", "가수", "가위", "가을", "가지", "가족",
+      "나라", "나무", "나비", "나침반", "다리", "다람쥐", "라디오", "라면", "마루", "마을",
+      "바다", "바다사자", "바람", "버스", "사과", "사다리", "사자", "사진", "시장", "시계",
+      "아기", "아버지", "아이", "야구", "어머니", "오리", "오징어", "우산", "자동차", "자가용",
+      "자리", "자전거", "장미", "카메라", "커피", "토마토", "파도", "파랑", "하늘", "학교"
+    ];
+
+    function makeEmptyBoard(size) {
+      return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+    }
+
+    function cloneBoard(board) {
+      return board.map(row => row.slice());
+    }
+
+    function inBounds(board, x, y) {
+      return y >= 0 && y < board.length && x >= 0 && x < board[y].length;
+    }
+
+    function isEdge(board, x, y) {
+      return inBounds(board, x, y) && (x === 0 || y === 0 || x === board.length - 1 || y === board.length - 1);
+    }
+
+    function filledCount(board) {
+      return board.flat().filter(Boolean).length;
+    }
+
+    function normalizeWord(word) {
+      return String(word || "").trim();
+    }
+
+    function isKoreanWord(word) {
+      return /^[가-힣]+$/.test(word);
+    }
+
+    function isValidWordShape(word) {
+      return isKoreanWord(word) && word.length >= 2;
+    }
+
+    function buildDictionary(words) {
+      const wordSet = new Set();
+      for (const raw of words) {
+        const word = normalizeWord(raw);
+        if (!word || word.startsWith("#") || !isValidWordShape(word)) continue;
+        wordSet.add(word);
+      }
+      return { wordSet };
+    }
+
+    let dictionary = buildDictionary(FALLBACK_WORDS);
+    let state = initialState();
+    let undoStack = [];
+    let newCellsForAnimation = [];
+
+    const els = {
+      board: document.querySelector("#board"),
+      scoreText: document.querySelector("#scoreText"),
+      message: document.querySelector("#message"),
+      boardInput: document.querySelector("#boardInput"),
+      placeBtn: document.querySelector("#placeBtn"),
+      undoBtn: document.querySelector("#undoBtn"),
+      newBtn: document.querySelector("#newBtn"),
+      sizeSelect: document.querySelector("#sizeSelect"),
+      startBtn: document.querySelector("#startBtn"),
+      introScreen: document.querySelector("#introScreen"),
+      gameScreen: document.querySelector("#gameScreen"),
+      dictStatus: document.querySelector("#dictStatus")
+    };
+
+    function initialState() {
+      return {
+        board: makeEmptyBoard(boardSize),
+        start: null,
+        head: null,
+        selectedDir: null,
+        lastDir: null,
+        turn: 0,
+        log: [],
+        message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
+        messageType: "ok"
+      };
+    }
+
+    function snapshotState() {
+      return {
+        board: cloneBoard(state.board),
+        start: state.start ? { ...state.start } : null,
+        head: state.head ? { ...state.head } : null,
+        selectedDir: state.selectedDir,
+        lastDir: state.lastDir,
+        turn: state.turn,
+        log: state.log.map(item => ({ ...item })),
+        message: state.message,
+        messageType: state.messageType
+      };
+    }
+
+    function restoreState(snapshot) {
+      state = {
+        ...snapshot,
+        board: cloneBoard(snapshot.board),
+        start: snapshot.start ? { ...snapshot.start } : null,
+        head: snapshot.head ? { ...snapshot.head } : null,
+        log: snapshot.log.map(item => ({ ...item }))
+      };
+    }
+
+    function validatePlacement(board, gameState, rawWord, dir) {
+      const word = normalizeWord(rawWord);
+      const delta = DIRECTIONS[dir];
+      if (!delta) return { ok: false, message: "방향을 선택하세요." };
+      if (!isKoreanWord(word)) return { ok: false, message: "순수 한글 음절 단어만 사용할 수 있습니다." };
+      if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
+      if (!dictionary.wordSet.has(word)) return { ok: false, message: "현재 사전에 없는 단어입니다." };
+      if (!gameState.start) return { ok: false, message: "먼저 가장자리 시작 칸을 선택하세요." };
+      if (gameState.lastDir && gameState.lastDir === dir) return { ok: false, message: "직전 방향과 같은 방향으로는 이동할 수 없습니다." };
+
+      const firstTurn = gameState.turn === 0;
+      const anchor = firstTurn ? gameState.start : gameState.head;
+      if (!anchor) return { ok: false, message: "현재 머리 칸이 없습니다." };
+      if (firstTurn && !isEdge(board, anchor.x, anchor.y)) return { ok: false, message: "시작점은 보드 가장자리여야 합니다." };
+
+      const headLetter = board[anchor.y][anchor.x];
+      if (!firstTurn && headLetter !== word[0]) {
+        return { ok: false, message: `현재 머리 글자 '${headLetter}'로 시작하는 단어를 입력하세요.` };
+      }
+
+      const path = [];
+      const startIndex = firstTurn ? 0 : 1;
+      if (!firstTurn) {
+        path.push({ x: anchor.x, y: anchor.y, letter: word[0] });
+      }
+
+      for (let i = startIndex; i < word.length; i += 1) {
+        const step = firstTurn ? i : i;
+        const x = anchor.x + delta.x * step;
+        const y = anchor.y + delta.y * step;
+        const letter = word[i];
+        if (!inBounds(board, x, y)) return { ok: false, message: "단어가 보드 밖으로 나갑니다." };
+        const existing = board[y][x];
+        if (existing && existing !== letter) {
+          return { ok: false, message: `(${x + 1}, ${y + 1}) 칸의 '${existing}'와 '${letter}'가 다릅니다.` };
+        }
+        path.push({ x, y, letter });
+      }
+
+      const newCells = path.filter(({ x, y }) => !board[y][x]);
+      const end = path[path.length - 1];
+      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y } };
+    }
+
+    function applyPlacement(board, placement) {
+      const next = cloneBoard(board);
+      for (const cell of placement.path) {
+        next[cell.y][cell.x] = cell.letter;
+      }
+      return next;
+    }
+
+    function selectStart(x, y) {
+      if (!isEdge(state.board, x, y)) {
+        setMessage("시작점은 가장자리 칸만 가능합니다.", "error");
+        return;
+      }
+      if (state.board[y][x]) {
+        setMessage("빈 가장자리 칸만 시작점으로 선택할 수 있습니다.", "error");
+        return;
+      }
+      if (state.turn > 0) {
+        setMessage("진행 중에는 새 판을 눌러 시작점을 다시 고르세요.", "error");
+        return;
+      }
+      state.start = { x, y };
+      state.head = { x, y };
+      setMessage(`시작점 (${x + 1}, ${y + 1}) 선택됨. 나아갈 칸을 고르세요.`, "ok");
+      render();
+      focusBoardInput();
+    }
+
+    function placeCurrentWord() {
+      const word = currentInputWord();
+      const result = validatePlacement(state.board, state, word, state.selectedDir);
+      if (!result.ok) {
+        setMessage(result.message, "error");
+        render();
+        return;
+      }
+
+      undoStack.push(snapshotState());
+      state.board = applyPlacement(state.board, result);
+      state.head = result.end;
+      state.lastDir = state.selectedDir;
+      state.selectedDir = null;
+      state.turn += 1;
+      state.log.unshift({
+        word: result.word,
+        dir: state.selectedDir,
+        newCount: result.newCells.length
+      });
+      state.log = state.log.slice(0, 8);
+      newCellsForAnimation = result.newCells.map(cell => `${cell.x},${cell.y}`);
+
+      const filled = filledCount(state.board);
+      const done = filled === state.board.length * state.board.length;
+      setMessage(done ? "전체 보드 클리어!" : `${result.word} 배치 완료. 새 칸 ${result.newCells.length}개.`, "ok");
+      els.boardInput.value = "";
+      render();
+      focusBoardInput();
+    }
+
+    function headLetter() {
+      if (!state.head) return "";
+      return state.board[state.head.y][state.head.x] || "";
+    }
+
+    function currentInputWord() {
+      const raw = normalizeWord(els.boardInput.value);
+      if (state.turn === 0) return raw;
+      const head = headLetter();
+      if (!head) return raw;
+      return head + raw;
+    }
+
+    function setMessage(message, type) {
+      state.message = message;
+      state.messageType = type;
+    }
+
+    function undo() {
+      const snapshot = undoStack.pop();
+      if (!snapshot) {
+        setMessage("되돌릴 턴이 없습니다.", "error");
+        render();
+        return;
+      }
+      restoreState(snapshot);
+      newCellsForAnimation = [];
+      setMessage("한 턴 되돌렸습니다.", "ok");
+      render();
+    }
+
+    function newGame() {
+      state = initialState();
+      undoStack = [];
+      newCellsForAnimation = [];
+      els.boardInput.value = "";
+      render();
+      focusBoardInput();
+    }
+
+    function startGame() {
+      boardSize = Number(els.sizeSelect.value) || DEFAULT_SIZE;
+      els.introScreen.classList.add("hidden");
+      els.gameScreen.classList.remove("hidden");
+      newGame();
+      setMessage("가장자리 칸을 눌러 시작점을 고르세요.", "ok");
+      render();
+    }
+
+    function showIntro() {
+      els.gameScreen.classList.add("hidden");
+      els.introScreen.classList.remove("hidden");
+      els.boardInput.value = "";
+    }
+
+    function focusBoardInput() {
+      window.setTimeout(() => els.boardInput.focus(), 0);
+    }
+
+    function anchorPos() {
+      if (!state.start) return null;
+      return state.turn === 0 ? state.start : state.head;
+    }
+
+    function nextCellForDir(dir) {
+      const anchor = anchorPos();
+      const delta = DIRECTIONS[dir];
+      if (!anchor || !delta) return null;
+      const x = anchor.x + delta.x;
+      const y = anchor.y + delta.y;
+      if (!inBounds(state.board, x, y)) return null;
+      if (state.lastDir && state.lastDir === dir) return null;
+      return { x, y, dir };
+    }
+
+    function dirFromNextCell(x, y) {
+      for (const dir of Object.keys(DIRECTIONS)) {
+        const next = nextCellForDir(dir);
+        if (next && next.x === x && next.y === y) return dir;
+      }
+      return null;
+    }
+
+    function selectDirectionCell(x, y) {
+      const dir = dirFromNextCell(x, y);
+      if (!dir) return false;
+      state.selectedDir = dir;
+      setMessage(state.turn === 0 ? "단어를 입력하고 놓기를 누르세요." : "뒤 글자를 입력하고 놓기를 누르세요.", "ok");
+      render();
+      focusBoardInput();
+      return true;
+    }
+
+    function previewPlacement(rawWord) {
+      const word = state.turn === 0 ? normalizeWord(rawWord) : currentInputWord();
+      const delta = DIRECTIONS[state.selectedDir];
+      const anchor = anchorPos();
+      const preview = new Map();
+      const conflicts = new Set();
+      if (!word || !delta || !anchor) return { preview, conflicts };
+
+      const firstTurn = state.turn === 0;
+      const startIndex = firstTurn ? 0 : 1;
+      if (!firstTurn) {
+        preview.set(`${anchor.x},${anchor.y}`, word[0] || "");
+        if (state.board[anchor.y][anchor.x] && state.board[anchor.y][anchor.x] !== word[0]) {
+          conflicts.add(`${anchor.x},${anchor.y}`);
+        }
+      }
+
+      for (let i = startIndex; i < word.length; i += 1) {
+        const x = anchor.x + delta.x * i;
+        const y = anchor.y + delta.y * i;
+        if (!inBounds(state.board, x, y)) break;
+        const key = `${x},${y}`;
+        preview.set(key, word[i]);
+        if (state.board[y][x] && state.board[y][x] !== word[i]) conflicts.add(key);
+      }
+      return { preview, conflicts };
+    }
+
+    function renderBoard() {
+      els.board.innerHTML = "";
+      const animated = new Set(newCellsForAnimation);
+      const { preview, conflicts } = previewPlacement(els.boardInput.value);
+      const size = state.board.length;
+      els.board.style.setProperty("--board-size", String(size));
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "cell";
+          const key = `${x},${y}`;
+          const previewLetter = preview.get(key);
+          const cellLetter = state.board[y][x];
+          button.textContent = cellLetter || previewLetter || "";
+          button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${cellLetter || previewLetter || "빈 칸"}`);
+          if (isEdge(state.board, x, y)) button.classList.add("edge");
+          if (cellLetter) button.classList.add("filled");
+          if (preview.has(key)) button.classList.add("preview-cell");
+          if (conflicts.has(key)) button.classList.add("conflict-cell");
+          if (state.start && state.start.x === x && state.start.y === y) button.classList.add("start");
+          if (state.head && state.head.x === x && state.head.y === y) button.classList.add("head");
+          const nextDir = dirFromNextCell(x, y);
+          if (nextDir) {
+            button.classList.add("next-cell");
+            if (state.selectedDir === nextDir) button.classList.add("selected-next");
+          }
+          if (animated.has(`${x},${y}`)) button.classList.add("new-cell");
+          button.addEventListener("click", () => {
+            if (selectDirectionCell(x, y)) return;
+            selectStart(x, y);
+          });
+          els.board.appendChild(button);
+        }
+      }
+      newCellsForAnimation = [];
+    }
+
+    function renderScore() {
+      const filled = filledCount(state.board);
+      const size = state.board.length;
+      const total = size * size;
+      const headLetter = state.head && state.board[state.head.y][state.head.x] ? state.board[state.head.y][state.head.x] : "-";
+      els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${headLetter} 뒤 글자 입력`;
+      els.scoreText.textContent = `${filled} / ${total}`;
+    }
+
+    function render() {
+      els.message.textContent = state.message;
+      els.message.classList.toggle("error", state.messageType === "error");
+      renderBoard();
+      renderScore();
+    }
+
+    function loadDictionaryFromText(text) {
+      dictionary = buildDictionary(text.split(/\r?\n/));
+    }
+
+    async function loadDefaultDictionary() {
+      if (typeof window.WORDSNAKE_WORDS === "string" && window.WORDSNAKE_WORDS.trim()) {
+        loadDictionaryFromText(window.WORDSNAKE_WORDS);
+        els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
+        render();
+        return;
+      }
+
+      try {
+        const response = await fetch("public/words.txt", { cache: "no-store" });
+        if (!response.ok) return;
+        loadDictionaryFromText(await response.text());
+        els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
+        render();
+      } catch {
+        els.dictStatus.textContent = "사전을 불러오지 못했습니다.";
+        render();
+      }
+    }
+
+    els.startBtn.addEventListener("click", startGame);
+    els.placeBtn.addEventListener("click", placeCurrentWord);
+    els.undoBtn.addEventListener("click", undo);
+    els.newBtn.addEventListener("click", showIntro);
+    els.board.addEventListener("click", focusBoardInput);
+    els.boardInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") placeCurrentWord();
+    });
+    els.boardInput.addEventListener("input", render);
+
+    window.wordsnake = {
+      makeEmptyBoard,
+      inBounds,
+      isEdge,
+      filledCount,
+      buildDictionary,
+      validatePlacement,
+      applyPlacement
+    };
+
+    render();
+    loadDefaultDictionary();
+  </script>
+</body>
+</html>
