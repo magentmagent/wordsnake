@@ -299,7 +299,7 @@
 
     .cell.initial-law-cell {
       position: relative;
-      background: #fff7ed;
+      background: #f6ead7;
       color: var(--ink);
       overflow: hidden;
     }
@@ -308,26 +308,49 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom right, transparent calc(50% - 1px), #9c6644 50%, transparent calc(50% + 1px));
+      z-index: 2;
+      background: linear-gradient(to bottom right, transparent calc(50% - 1.4px), #795548 50%, transparent calc(50% + 1.4px));
       pointer-events: none;
+    }
+
+    .initial-law-half {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .initial-law-half.from {
+      background: #f8e8c7;
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+    }
+
+    .initial-law-half.to {
+      background: #d7ece8;
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
     }
 
     .initial-law-letter {
       position: absolute;
       z-index: 1;
-      font-size: clamp(0.5rem, calc(34vw / var(--board-size, 8)), 1.15rem);
+      display: grid;
+      place-items: center;
+      width: 38%;
+      height: 38%;
+      font-size: clamp(0.42rem, calc(23vw / var(--board-size, 8)), 0.86rem);
       line-height: 1;
       font-weight: 900;
+      letter-spacing: 0;
     }
 
     .initial-law-letter.from {
-      left: 16%;
-      top: 15%;
+      left: 10%;
+      top: 9%;
     }
 
     .initial-law-letter.to {
-      right: 16%;
-      bottom: 15%;
+      right: 10%;
+      bottom: 9%;
       color: var(--accent);
     }
 
@@ -1059,12 +1082,18 @@
     function renderInitialLawCell(button, mark) {
       button.classList.add("initial-law-cell");
       button.textContent = "";
+      const fromHalf = document.createElement("span");
+      fromHalf.className = "initial-law-half from";
+      const toHalf = document.createElement("span");
+      toHalf.className = "initial-law-half to";
       const from = document.createElement("span");
       from.className = "initial-law-letter from";
       from.textContent = mark.from;
       const to = document.createElement("span");
       to.className = "initial-law-letter to";
       to.textContent = mark.to;
+      button.appendChild(fromHalf);
+      button.appendChild(toHalf);
       button.appendChild(from);
       button.appendChild(to);
     }
