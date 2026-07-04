@@ -97,7 +97,7 @@ Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktio
 
 정적 웹사이트로 배포할 수 있습니다. GitHub Pages, Netlify, Vercel, Cloudflare Pages 같은 정적 호스팅에 `index.html`과 `public/`을 올리면 됩니다.
 
-구체적인 배포 절차와 AdSense 준비 순서는 `DEPLOYMENT.md`를 참고하세요. AdSense publisher ID를 받기 전까지는 `ads.txt.template`을 그대로 두고, 실제 ID를 받은 뒤 `ads.txt`로 이름을 바꿔 배포합니다.
+구체적인 배포 절차와 AdSense 준비 순서는 `DEPLOYMENT.md`를 참고하세요. AdSense publisher ID를 받기 전까지는 `public/ad-config.js`의 `enabled`를 `false`로 두고, `ads.txt.template`도 그대로 둡니다. 실제 ID를 받은 뒤 `public/ad-config.js`를 갱신하고 `ads.txt.template`을 `ads.txt`로 이름을 바꿔 배포합니다.
 
 광고를 붙이기 전에는 다음을 확인하세요.
 

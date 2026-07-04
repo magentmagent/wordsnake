@@ -9,6 +9,7 @@ Check these files before the first public release:
 - `index.html`
 - `public/words-data.js`
 - `public/words.txt`
+- `public/ad-config.js`
 - `NOTICE.md`
 - `privacy.html`
 - `.nojekyll`
@@ -57,20 +58,23 @@ Google AdSense site review generally expects:
 - The applicant is at least 18 years old.
 - Privacy and attribution pages are reachable.
 
-For this project, do not add real ad code until the site has a public URL and an AdSense publisher ID.
+For this project, keep ads disabled until the site has a public URL and an AdSense publisher ID.
 
 ## Adding AdSense Later
 
 1. Publish the site first.
 2. Create or open a Google AdSense account.
 3. Add the published domain in AdSense.
-4. Copy the AdSense verification or auto-ads script.
-5. Paste that script into the `<head>` of `index.html`.
-6. Replace the placeholder in `ads.txt.template` with your real publisher ID.
-7. Rename `ads.txt.template` to `ads.txt`.
-8. Publish again.
-9. Confirm that `https://YOUR_DOMAIN/ads.txt` opens in the browser.
-10. Request review in AdSense.
+4. Copy your publisher ID, which looks like `ca-pub-0000000000000000`.
+5. Open `public/ad-config.js`.
+6. Set `enabled` to `true`.
+7. Set `adsenseClient` to your publisher ID.
+8. If you create manual display ad units, put their numeric slot IDs in `slots.intro` and `slots.result`.
+9. Replace the placeholder in `ads.txt.template` with your real publisher ID without the `ca-` prefix.
+10. Rename `ads.txt.template` to `ads.txt`.
+11. Publish again.
+12. Confirm that `https://YOUR_DOMAIN/ads.txt` opens in the browser.
+13. Request review in AdSense.
 
 Example `ads.txt` line:
 
@@ -80,11 +84,26 @@ google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
 
 Replace `pub-0000000000000000` with the publisher ID shown in your AdSense account.
 
+Example `public/ad-config.js`:
+
+```js
+window.WORDSNAKE_ADS = {
+  enabled: true,
+  adsenseClient: "ca-pub-0000000000000000",
+  slots: {
+    intro: "1111111111",
+    result: "2222222222"
+  }
+};
+```
+
+Leave `slots.intro` and `slots.result` empty if you only want to use Auto ads from the AdSense dashboard.
+
 ## Ad Placement Notes
 
 For a mobile game, start gently:
 
-- Prefer one banner or anchor ad outside the active board area.
+- Prefer one banner outside the active board area.
 - Do not cover the board, start button, undo button, or typed letters.
 - Do not ask users to click ads.
 - Avoid placing ads where accidental taps are likely.

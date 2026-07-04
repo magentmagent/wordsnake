@@ -665,6 +665,18 @@
       font-weight: 800;
       text-decoration: none;
     }
+
+    .ad-zone {
+      display: none;
+      width: 100%;
+      min-height: 96px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .ad-zone.ready {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -744,6 +756,7 @@
         Dictionary data includes NIKL Standard Korean Dictionary and Kaikki/Wiktionary-derived data.
         <a href="NOTICE.md">Notice</a> · <a href="privacy.html">Privacy</a>
       </p>
+      <aside id="introAd" class="ad-zone" aria-label="Advertisement"></aside>
     </section>
 
     <main id="gameScreen" class="screen hidden">
@@ -790,6 +803,7 @@
             </div>
             <ol id="leaderboardList" class="leaderboard-list"></ol>
           </div>
+          <aside id="resultAd" class="ad-zone" aria-label="Advertisement"></aside>
         </div>
         <button id="placeBtn" class="button primary large" type="button">놓기</button>
         <div class="action-row">
@@ -802,6 +816,7 @@
 
   <script src="public/words-data.js"></script>
   <script src="public/suggest-config.js"></script>
+  <script src="public/ad-config.js"></script>
   <script>
     const DEFAULT_SIZE = 8;
     const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\/+$/, "");
@@ -930,6 +945,38 @@
       return { wordSet };
     }
 
+    function initAds() {
+      const config = window.WORDSNAKE_ADS || {};
+      const client = String(config.adsenseClient || "").trim();
+      if (!config.enabled || !/^ca-pub-\d+$/.test(client)) return;
+
+      const script = document.createElement("script");
+      script.async = true;
+      script.crossOrigin = "anonymous";
+      script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(client)}`;
+      document.head.appendChild(script);
+
+      const slots = config.slots || {};
+      mountAdSlot(els.introAd, client, slots.intro);
+      mountAdSlot(els.resultAd, client, slots.result);
+    }
+
+    function mountAdSlot(container, client, slot) {
+      const adSlot = String(slot || "").trim();
+      if (!container || !/^\d+$/.test(adSlot)) return;
+      const ad = document.createElement("ins");
+      ad.className = "adsbygoogle";
+      ad.style.display = "block";
+      ad.dataset.adClient = client;
+      ad.dataset.adSlot = adSlot;
+      ad.dataset.adFormat = "auto";
+      ad.dataset.fullWidthResponsive = "true";
+      container.appendChild(ad);
+      container.classList.add("ready");
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adsbygoogle.push({});
+    }
+
     let dictionary = buildDictionary(FALLBACK_WORDS);
     let state = initialState();
     let undoStack = [];
@@ -963,6 +1010,8 @@
       introLeaderboardScope: document.querySelector("#introLeaderboardScope"),
       introLeaderboardList: document.querySelector("#introLeaderboardList"),
       introRankingStatus: document.querySelector("#introRankingStatus"),
+      introAd: document.querySelector("#introAd"),
+      resultAd: document.querySelector("#resultAd"),
       undoBtn: document.querySelector("#undoBtn"),
       newBtn: document.querySelector("#newBtn"),
       sizeSelect: document.querySelector("#sizeSelect"),
@@ -1848,6 +1897,7 @@
     };
 
     render();
+    initAds();
     loadDefaultDictionary();
   </script>
 </body>
