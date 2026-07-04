@@ -15,6 +15,9 @@ The generated dictionary files in `public/words.txt` and `public/words-data.js` 
 - National Institute of Korean Language, Standard Korean Language Dictionary / 표준국어대사전
   - Website: https://stdict.korean.go.kr/
   - Open API information: https://stdict.korean.go.kr/openapi/openApiInfo.do
+- National Institute of Korean Language, Urimalsaem / 우리말샘
+  - Website: https://opendict.korean.go.kr/
+  - Full XML download package supplied by the project owner.
 - Kaikki.org Korean machine-readable dictionary data
   - Website: https://kaikki.org/dictionary/Korean/
   - Raw data page: https://kaikki.org/dictionary/rawdata.html
@@ -33,6 +36,7 @@ Dictionary data has been filtered and transformed for gameplay:
 
 - Non-Hangul entries were removed.
 - One-character entries were removed.
+- Suffix, particle, ending, and old-word senses from Urimalsaem were excluded.
 - Some source markers and separators were normalized.
 - Multiple sources were merged and deduplicated.
 - A JavaScript payload, `public/words-data.js`, was generated from `public/words.txt` for file-based browser loading.

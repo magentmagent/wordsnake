@@ -1,4 +1,7 @@
 전체 내려받기_표준국어대사전_xls_20260704/
+전체 내려받기_우리말샘_xml_20260602/
 english-wordnet-*.xml.gz
 enwiktionary-*.gz
 enwiktionary-*.bz2
+raw-wiktextract-data.jsonl.gz
+*-wiktextract-data.jsonl.gz

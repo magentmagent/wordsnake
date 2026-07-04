@@ -93,6 +93,17 @@ python tools/merge_kaikki_korean_words.py --words public/words.txt --include-for
 
 Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktionary와 Kaikki의 라이선스와 출처 표기 조건을 확인하세요.
 
+## 우리말샘 XML 데이터 병합
+
+우리말샘 전체 XML 내려받기 폴더가 있으면 다음 명령으로 기존 `public/words.txt`에 병합합니다.
+
+```powershell
+python .\tools\merge_urimalsaem_words.py --words .\public\words.txt --input-dir ".\전체 내려받기_우리말샘_xml_20260602" --include-conjugations --verbose
+python .\tools\build_words_data_js.py --words .\public\words.txt --out .\public\words-data.js
+```
+
+추출 기준은 순수 한글 2글자 이상이며, 접사/조사/어미/옛말 항목은 제외합니다.
+
 ## 공개 배포와 광고
 
 정적 웹사이트로 배포할 수 있습니다. GitHub Pages, Netlify, Vercel, Cloudflare Pages 같은 정적 호스팅에 `index.html`과 `public/`을 올리면 됩니다.
@@ -104,7 +115,7 @@ Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktio
 - `NOTICE.md`의 출처와 라이선스 표기를 유지합니다.
 - 첫 화면의 Notice/Privacy 링크를 유지합니다.
 - 광고/분석 서비스를 넣는 경우 `privacy.html`을 실제 서비스 정책에 맞게 갱신합니다.
-- 사전 데이터는 코드와 별도 산출물로 취급하고, Kaikki/Wiktionary-derived 데이터의 CC BY-SA 조건을 검토합니다.
+- 사전 데이터는 코드와 별도 산출물로 취급하고, 국립국어원/우리말샘/Kaikki/Wiktionary-derived 데이터의 이용 조건을 검토합니다.
 
 ## 사용자 단어 제안
 
