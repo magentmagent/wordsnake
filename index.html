@@ -1354,14 +1354,24 @@
       focusBoardInput();
     }
 
-    function startGame() {
-      boardSize = Number(els.sizeSelect.value) || DEFAULT_SIZE;
+    function startGame(sizeOverride = null) {
+      boardSize = Number(sizeOverride || els.sizeSelect.value) || DEFAULT_SIZE;
+      els.sizeSelect.value = String(boardSize);
       els.introScreen.classList.add("hidden");
       els.gameScreen.classList.remove("hidden");
       els.introRankingPanel.classList.add("hidden");
       newGame();
       setMessage("가장자리 칸을 눌러 시작점을 고르세요.", "ok");
       render();
+    }
+
+    function startFromUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("start") !== "1") return;
+      const requestedSize = Number(params.get("size")) || DEFAULT_SIZE;
+      const safeSize = Math.min(12, Math.max(6, requestedSize));
+      startGame(safeSize);
+      window.history.replaceState({}, "", window.location.pathname);
     }
 
     function showIntro() {
@@ -1899,6 +1909,7 @@
     render();
     initAds();
     loadDefaultDictionary();
+    startFromUrlParams();
   </script>
 </body>
 </html>
