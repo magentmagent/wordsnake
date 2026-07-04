@@ -686,7 +686,7 @@
 </head>
 <body>
   <div class="app">
-    <section id="introScreen" class="screen intro">
+    <section id="introScreen" class="screen intro hidden">
       <div>
         <h1>wordsnake</h1>
         <p class="intro-copy">끝말잇기처럼 이어 붙이고, 스네이크처럼 칸을 타고 움직입니다.</p>
@@ -1375,6 +1375,9 @@
     }
 
     function startFromUrlParams() {
+      if (window.location.protocol === "file:" && START_PARAMS.get("start") !== "1") {
+        return false;
+      }
       returnToRootOnExit = window.location.protocol !== "file:";
       const requestedSize = Number(START_PARAMS.get("size")) || DEFAULT_SIZE;
       const safeSize = Math.min(12, Math.max(6, requestedSize));
@@ -1936,7 +1939,10 @@
 
     initAds();
     const startedFromUrl = startFromUrlParams();
-    if (!startedFromUrl) render();
+    if (!startedFromUrl) {
+      els.introScreen.classList.remove("hidden");
+      render();
+    }
     loadDefaultDictionary();
   </script>
 </body>
