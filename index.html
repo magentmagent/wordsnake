@@ -336,22 +336,22 @@
       z-index: 1;
       display: grid;
       place-items: center;
-      width: 38%;
-      height: 38%;
-      font-size: clamp(0.38rem, var(--initial-law-font-size, calc(20cqw / var(--board-size, 8))), 0.86rem);
+      width: 46%;
+      height: 46%;
+      font-size: clamp(0.46rem, var(--initial-law-font-size, calc(24cqw / var(--board-size, 8))), 1.08rem);
       line-height: 1;
       font-weight: 900;
       letter-spacing: 0;
     }
 
     .initial-law-letter.from {
-      left: 10%;
-      top: 9%;
+      left: 6%;
+      top: 5%;
     }
 
     .initial-law-letter.to {
-      right: 10%;
-      bottom: 9%;
+      right: 6%;
+      bottom: 5%;
       color: var(--accent);
     }
 
@@ -1107,7 +1107,7 @@
       const size = state.board.length;
       els.board.style.setProperty("--board-size", String(size));
       const normalFactor = Math.max(38, 54 - ((size - 8) * 4));
-      const splitFactor = Math.max(20, 26 - ((size - 8) * 1.5));
+      const splitFactor = Math.max(24, 34 - ((size - 8) * 2.5));
       els.board.style.setProperty("--cell-font-size", `calc(${normalFactor}cqw / ${size})`);
       els.board.style.setProperty("--initial-law-font-size", `calc(${splitFactor}cqw / ${size})`);
       for (let y = 0; y < size; y += 1) {
