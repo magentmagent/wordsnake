@@ -209,6 +209,7 @@
       display: grid;
       grid-template-columns: repeat(var(--board-size, 8), minmax(0, 1fr));
       grid-template-rows: repeat(var(--board-size, 8), minmax(0, 1fr));
+      container-type: inline-size;
       aspect-ratio: 1 / 1;
       min-width: 0;
       min-height: 0;
@@ -248,7 +249,7 @@
       border-radius: 5px;
       background: var(--cell);
       color: var(--ink);
-      font-size: clamp(0.72rem, calc(54vw / var(--board-size, 8)), 2rem);
+      font-size: clamp(0.5rem, calc(38cqw / var(--board-size, 8)), 1.85rem);
       font-weight: 800;
       touch-action: manipulation;
       transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
@@ -337,7 +338,7 @@
       place-items: center;
       width: 38%;
       height: 38%;
-      font-size: clamp(0.42rem, calc(23vw / var(--board-size, 8)), 0.86rem);
+      font-size: clamp(0.34rem, calc(18cqw / var(--board-size, 8)), 0.78rem);
       line-height: 1;
       font-weight: 900;
       letter-spacing: 0;
