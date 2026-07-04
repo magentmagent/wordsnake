@@ -792,6 +792,8 @@
         selectedDir: null,
         lastDir: null,
         turn: 0,
+        score: 0,
+        usedWords: [],
         log: [],
         initialLawMarks: [],
         message: "가장자리 빈 칸을 터치해 시작점을 고르세요.",
@@ -807,6 +809,8 @@
         selectedDir: state.selectedDir,
         lastDir: state.lastDir,
         turn: state.turn,
+        score: state.score,
+        usedWords: state.usedWords.slice(),
         log: state.log.map(item => ({ ...item })),
         initialLawMarks: state.initialLawMarks.map(item => ({ ...item })),
         message: state.message,
@@ -820,9 +824,21 @@
         board: cloneBoard(snapshot.board),
         start: snapshot.start ? { ...snapshot.start } : null,
         head: snapshot.head ? { ...snapshot.head } : null,
+        usedWords: (snapshot.usedWords || []).slice(),
         log: snapshot.log.map(item => ({ ...item })),
         initialLawMarks: (snapshot.initialLawMarks || []).map(item => ({ ...item }))
       };
+    }
+
+    function scorePlacement(board, path, newCells, word, firstTurn) {
+      const crossingCells = path.filter((cell, index) => {
+        if (!board[cell.y][cell.x]) return false;
+        return firstTurn || index > 0;
+      });
+      const lengthBonus = Math.max(0, word.length - 3);
+      const crossBonus = crossingCells.length * 2;
+      const gained = newCells.length + lengthBonus + crossBonus;
+      return { gained, lengthBonus, crossBonus, crossingCount: crossingCells.length };
     }
 
     function validatePlacement(board, gameState, rawWord, dir) {
@@ -843,6 +859,9 @@
       if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
       if (!dictionary.wordSet.has(word)) {
         return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
+      }
+      if ((gameState.usedWords || []).includes(word)) {
+        return { ok: false, message: "이미 사용한 단어는 다시 사용할 수 없습니다." };
       }
 
       const headLetter = firstTurn ? "" : board[anchor.y][anchor.x];
@@ -875,7 +894,8 @@
 
       const newCells = path.filter(({ x, y }) => !board[y][x]);
       const end = path[path.length - 1];
-      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y }, initialLaw };
+      const score = scorePlacement(board, path, newCells, word, firstTurn);
+      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y }, initialLaw, score };
     }
 
     function applyPlacement(board, placement) {
@@ -922,10 +942,13 @@
       state.lastDir = state.selectedDir;
       state.selectedDir = null;
       state.turn += 1;
+      state.score += result.score.gained;
+      state.usedWords.push(result.word);
       state.log.unshift({
         word: result.word,
         dir: state.selectedDir,
-        newCount: result.newCells.length
+        newCount: result.newCells.length,
+        score: result.score.gained
       });
       state.log = state.log.slice(0, 8);
       if (result.initialLaw) {
@@ -938,7 +961,10 @@
       const filled = filledCount(state.board);
       const done = filled === state.board.length * state.board.length;
       const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
-      setMessage(done ? "전체 보드 클리어!" : `${ruleText}${result.word} 배치 완료. 새 칸 ${result.newCells.length}개.`, "ok");
+      const scoreParts = [`+${result.score.gained}점`];
+      if (result.score.lengthBonus) scoreParts.push(`긴 단어 +${result.score.lengthBonus}`);
+      if (result.score.crossBonus) scoreParts.push(`교차 +${result.score.crossBonus}`);
+      setMessage(done ? "전체 보드 클리어!" : `${ruleText}${result.word} 배치 완료. ${scoreParts.join(" · ")}`, "ok");
       els.boardInput.value = "";
       lastMissingWord = "";
       render();
@@ -1157,7 +1183,7 @@
       const head = state.head && state.board[state.head.y][state.head.x] ? state.board[state.head.y][state.head.x] : "-";
       const startLabel = head === "-" ? head : headStartLetters(head).join("/");
       els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${startLabel} 뒤 글자 입력`;
-      els.scoreText.textContent = `${filled} / ${total}`;
+      els.scoreText.textContent = `${state.score}점 · ${filled} / ${total}`;
     }
 
     function render() {
