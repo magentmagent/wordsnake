@@ -1810,7 +1810,7 @@
         const response = await fetch("../public/words-ja-blocked.txt", { cache: "no-store" });
         if (response.ok) loadBlockedDictionaryFromText(await response.text());
       } catch {
-        // 금지 단어 사전은 실패해도 게임 자체는 계속 진행할 수 있습니다.
+        // 禁止語辞書の読み込みに失敗しても、ゲーム自体は続行できます。
       }
     }
 
@@ -1934,7 +1934,7 @@
       const boardSizeForRank = Number(size) || DEFAULT_SIZE;
       if (!SUGGEST_API) {
         renderLeaderboard(listEl, []);
-        if (setStatus) setStatus("랭킹 서버 주소가 아직 설정되지 않았습니다.", true);
+        if (setStatus) setStatus("ランキングサーバーが未設定です。", true);
         return;
       }
       try {
@@ -1979,7 +1979,7 @@
     async function submitScore() {
       if (!state.finished || state.scoreUploaded) return;
       if (!SUGGEST_API) {
-        setScoreSubmitStatus("랭킹 서버 주소가 아직 설정되지 않았습니다.", true);
+        setScoreSubmitStatus("ランキングサーバーが未設定です。", true);
         return;
       }
 
@@ -1987,7 +1987,7 @@
       els.playerNameInput.value = payload.name;
       localStorage.setItem("wordChainSnakeJaPlayerName", payload.name);
       els.submitScoreBtn.disabled = true;
-      setScoreSubmitStatus("点수 등록 중...");
+      setScoreSubmitStatus("得点を登録中...");
       try {
         const response = await fetch(`${SUGGEST_API}/scores`, {
           method: "POST",
@@ -1995,13 +1995,13 @@
           body: JSON.stringify(payload)
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "点수 등록에 실패했습니다.");
+        if (!response.ok) throw new Error(data.error || "得点の登録に失敗しました。");
         state.scoreUploaded = true;
         state.scoreId = data.item && data.item.id ? data.item.id : "";
-        setScoreSubmitStatus("点수가 등록되었습니다.");
+        setScoreSubmitStatus("得点を登録しました。");
         await loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
       } catch (error) {
-        setScoreSubmitStatus(error.message || "点수 등록에 실패했습니다.", true);
+        setScoreSubmitStatus(error.message || "得点の登録に失敗しました。", true);
       } finally {
         els.submitScoreBtn.disabled = state.scoreUploaded;
       }
@@ -2009,8 +2009,8 @@
 
     function openGithubSuggestion(word) {
       const params = new URLSearchParams({
-        title: `단어 제안: ${word}`,
-        body: `제안 단어: ${word}\n\n게임에서 사전에 없는 단어로 확인되어 등록을 제안합니다.`
+        title: `単語の提案: ${word}`,
+        body: `提案単語: ${word}\n\nゲーム辞書にない単語として確認されたため、登録を提案します。`
       });
       window.open(`${GITHUB_ISSUE_URL}?${params.toString()}`, "_blank", "noopener");
     }
@@ -2031,7 +2031,7 @@
 
       if (!SUGGEST_API) {
         openGithubSuggestion(word);
-        setSuggestStatus("서버 주소가 아직 설정되지 않아 GitHub 제안 화면을 열었습니다.");
+        setSuggestStatus("サーバーが未設定のため、GitHubの提案画面を開きました。");
         els.suggestBtn.disabled = false;
         return;
       }
@@ -2043,17 +2043,17 @@
           body: JSON.stringify({ word, source: "word-chain-snake-ja", lang: GAME_LANG })
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "제안 전송에 실패했습니다.");
+        if (!response.ok) throw new Error(data.error || "提案の送信に失敗しました。");
         if (data.status === "approved") {
           dictionary.wordSet.add(word);
           lastMissingWord = "";
-          setMessage(`${word}은 이미 승인된 단어입니다.`, "ok");
+          setMessage(`${word} はすでに承認済みの単語です。`, "ok");
           render();
           return;
         }
-        setSuggestStatus(data.duplicate ? "이미 대기 중인 단어입니다. 중복 제안은 하나로 합쳤습니다." : "제안이 등록되었습니다. 승인 후 사전에 추가됩니다.");
+        setSuggestStatus(data.duplicate ? "すでに承認待ちです。重複提案はまとめられました。" : "提案を登録しました。承認後に追加されます。");
       } catch (error) {
-        setSuggestStatus(error.message || "제안 전송에 실패했습니다.", true);
+        setSuggestStatus(error.message || "提案の送信に失敗しました。", true);
       } finally {
         els.suggestBtn.disabled = false;
       }

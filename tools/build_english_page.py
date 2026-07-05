@@ -210,6 +210,7 @@ def main():
         'if (!response.ok) throw new Error(data.error || "랭킹을 불러오지 못했습니다.");': 'if (!response.ok) throw new Error(data.error || "Could not load rankings.");',
         'if (setStatus) setStatus(error.message || "랭킹을 불러오지 못했습니다.", true);': 'if (setStatus) setStatus(error.message || "Could not load rankings.", true);',
         'setIntroRankingStatus("랭킹을 불러오는 중...");': 'setIntroRankingStatus("Loading rankings...");',
+        '// 금지 단어 사전은 실패해도 게임 자체는 계속 진행할 수 있습니다.': '// The blocked-word dictionary is optional; the game can keep running if it fails.',
         'setScoreSubmitStatus("랭킹 서버 주소가 아직 설정되지 않았습니다.", true);': 'setScoreSubmitStatus("Ranking server is not configured yet.", true);',
         'setScoreSubmitStatus("점수 등록 중...");': 'setScoreSubmitStatus("Uploading score...");',
         'if (!response.ok) throw new Error(data.error || "점수 등록에 실패했습니다.");': 'if (!response.ok) throw new Error(data.error || "Could not upload score.");',
