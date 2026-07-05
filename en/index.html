@@ -461,6 +461,13 @@
       align-items: center;
     }
 
+    .share-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
     .suggest-word {
       min-width: 0;
       padding: 9px 10px;
@@ -860,6 +867,10 @@
             <button id="submitScoreBtn" class="button primary" type="button">Upload</button>
           </div>
           <p id="scoreSubmitStatus" class="result-status"></p>
+          <div class="share-row">
+            <p id="shareStatus" class="result-status"></p>
+            <button id="shareResultBtn" class="button" type="button">Share</button>
+          </div>
           <div class="leaderboard">
             <div class="leaderboard-title">
               <span>Ranking</span>
@@ -882,6 +893,7 @@
   <script src="../public/words-en-blocked-data.js"></script>
   <script src="../public/suggest-config.js"></script>
   <script src="../public/ad-config.js"></script>
+  <script src="../public/analytics-config.js"></script>
   <script>
     const DEFAULT_SIZE = 8;
     const GAME_LANG = "en";
@@ -1005,6 +1017,19 @@
       window.adsbygoogle.push({});
     }
 
+    function loadCloudflareAnalytics() {
+      const config = window.WORD_CHAIN_SNAKE_ANALYTICS || {};
+      const token = String(config.cloudflareToken || "").trim();
+      if (!token || document.querySelector("script[data-cf-beacon]")) return;
+      const script = document.createElement("script");
+      script.defer = true;
+      script.src = "https://static.cloudflareinsights.com/beacon.min.js";
+      script.dataset.cfBeacon = JSON.stringify({ token });
+      document.head.appendChild(script);
+    }
+
+    loadCloudflareAnalytics();
+
     let dictionary = buildDictionary(FALLBACK_WORDS);
     let blockedDictionary = buildDictionary([]);
     let state = initialState();
@@ -1033,6 +1058,8 @@
       playerNameInput: document.querySelector("#playerNameInput"),
       submitScoreBtn: document.querySelector("#submitScoreBtn"),
       scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
+      shareResultBtn: document.querySelector("#shareResultBtn"),
+      shareStatus: document.querySelector("#shareStatus"),
       leaderboardScope: document.querySelector("#leaderboardScope"),
       leaderboardList: document.querySelector("#leaderboardList"),
       introRankingBtn: document.querySelector("#introRankingBtn"),
@@ -1401,6 +1428,7 @@
       els.introRankingPanel.classList.add("hidden");
       newGame();
       setMessage("Tap an edge tile to choose a start.", "ok");
+      trackGameEvent("game_start", { boardSize });
       render();
     }
 
@@ -1842,6 +1870,8 @@
       els.resultPanel.classList.add("hidden");
       els.scoreSubmitStatus.textContent = "";
       els.scoreSubmitStatus.classList.remove("error");
+      els.shareStatus.textContent = "";
+      els.shareStatus.classList.remove("error");
       els.leaderboardList.innerHTML = "";
     }
 
@@ -1852,6 +1882,7 @@
       els.resultTitle.textContent = type === "clear" ? "Clear Result" : "Surrender Result";
       setScoreSubmitStatus(SUGGEST_API ? "You can upload your score." : "Ranking server is not configured yet.", !SUGGEST_API);
       loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
+      trackGameEvent("game_finish", { finishType: type, score: state.score, filled: filledCount(state.board), turns: state.turn });
     }
 
     function renderResultPanel() {
@@ -1878,6 +1909,47 @@
     function setScoreSubmitStatus(message, isError = false) {
       els.scoreSubmitStatus.textContent = message;
       els.scoreSubmitStatus.classList.toggle("error", isError);
+    }
+
+    function setShareStatus(message, isError = false) {
+      els.shareStatus.textContent = message;
+      els.shareStatus.classList.toggle("error", isError);
+    }
+
+    function shareUrl() {
+      const path = GAME_LANG === "ko" ? "/wordsnake/" : `/wordsnake/${GAME_LANG}/`;
+      return `${window.location.origin}${path}`;
+    }
+
+    function shareText() {
+      const result = resultSnapshot();
+      const finish = result.finishType === "clear" ? "Clear" : "Surrender";
+      return [
+        "Word Chain Snake",
+        `${result.boardSize}x${result.boardSize} / English / ${finish} / ${result.score.toLocaleString("en-US")} pts / ${result.filled} tiles`,
+        "Score higher with longer words and crossings.",
+        shareUrl()
+      ].join("\n");
+    }
+
+    async function shareResult() {
+      if (!state.finished) return;
+      const text = shareText();
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
+          setShareStatus("Shared.");
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          setShareStatus("Result copied to clipboard.");
+        } else {
+          setShareStatus("This browser does not support sharing.", true);
+        }
+        trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score });
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        setShareStatus("Could not share.", true);
+      }
     }
 
     function renderLeaderboard(listEl, items, ownRank = null, ownItem = null) {
@@ -1941,6 +2013,31 @@
 
     function selectedIntroBoardSize() {
       return Number(els.sizeSelect.value) || DEFAULT_SIZE;
+    }
+
+    function trackGameEvent(type, detail = {}) {
+      if (!SUGGEST_API) return;
+      const payload = {
+        type,
+        lang: GAME_LANG,
+        boardSize: Number(state.board && state.board.length) || boardSize || DEFAULT_SIZE,
+        ...detail
+      };
+      const body = JSON.stringify(payload);
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon(`${SUGGEST_API}/events`, blob)) return;
+        }
+        fetch(`${SUGGEST_API}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true
+        }).catch(() => {});
+      } catch {
+        // Analytics must never interrupt play.
+      }
     }
 
     async function showIntroRanking() {
@@ -2024,7 +2121,7 @@
         const response = await fetch(`${SUGGEST_API}/suggestions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ word, source: "word-chain-snake-en", lang: GAME_LANG })
+          body: JSON.stringify({ word, source: `word-chain-snake-${GAME_LANG}`, lang: GAME_LANG })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Could not send suggestion.");
@@ -2086,6 +2183,7 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.submitScoreBtn.addEventListener("click", submitScore);
+    els.shareResultBtn.addEventListener("click", shareResult);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

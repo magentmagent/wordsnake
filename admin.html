@@ -63,6 +63,25 @@
       gap: 8px;
     }
 
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .stats-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: 72px 64px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
     input,
     button {
       min-height: 44px;
@@ -137,7 +156,8 @@
 
     @media (max-width: 520px) {
       .auth,
-      .item {
+      .item,
+      .stat-row {
         grid-template-columns: 1fr;
       }
     }
@@ -160,6 +180,15 @@
 
     <p id="status" class="status"></p>
     <section id="list" class="list" aria-label="pending word suggestions"></section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <button id="statsTodayBtn" class="primary" type="button">오늘 통계</button>
+        <button id="statsAllBtn" type="button">전체 통계</button>
+      </div>
+    </section>
+    <p id="statsStatus" class="status"></p>
+    <section id="statsList" class="stats-grid" aria-label="game event stats"></section>
   </main>
 
   <script src="public/suggest-config.js"></script>
@@ -168,8 +197,12 @@
       apiInput: document.querySelector("#apiInput"),
       tokenInput: document.querySelector("#tokenInput"),
       loadBtn: document.querySelector("#loadBtn"),
+      statsTodayBtn: document.querySelector("#statsTodayBtn"),
+      statsAllBtn: document.querySelector("#statsAllBtn"),
       status: document.querySelector("#status"),
-      list: document.querySelector("#list")
+      list: document.querySelector("#list"),
+      statsStatus: document.querySelector("#statsStatus"),
+      statsList: document.querySelector("#statsList")
     };
 
     const savedApi = localStorage.getItem("wordsnakeAdminApi") || window.WORDSNAKE_SUGGEST_API || "";
@@ -187,6 +220,11 @@
     function setStatus(message, isError = false) {
       els.status.textContent = message;
       els.status.classList.toggle("error", isError);
+    }
+
+    function setStatsStatus(message, isError = false) {
+      els.statsStatus.textContent = message;
+      els.statsStatus.classList.toggle("error", isError);
     }
 
     async function request(path, options = {}) {
@@ -256,7 +294,51 @@
       }
     }
 
+    function renderStats(items) {
+      els.statsList.innerHTML = "";
+      if (!items.length) {
+        els.statsList.innerHTML = '<p class="panel">기록된 이벤트가 없습니다.</p>';
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("article");
+        row.className = "item stat-row";
+        row.innerHTML = `
+          <strong>${String(item.lang || "").toUpperCase()}</strong>
+          <span>${item.boardSize}x${item.boardSize}</span>
+          <span></span>
+          <strong>${Number(item.count || 0).toLocaleString("ko-KR")}</strong>
+        `;
+        row.querySelector("span:nth-of-type(2)").textContent = eventLabel(item.type);
+        els.statsList.appendChild(row);
+      }
+    }
+
+    function eventLabel(type) {
+      return {
+        game_start: "게임 시작",
+        game_finish_clear: "클리어",
+        game_finish_surrender: "항복",
+        share_result: "결과 공유"
+      }[type] || type;
+    }
+
+    async function loadStats(scope = "day") {
+      localStorage.setItem("wordsnakeAdminApi", apiBase());
+      localStorage.setItem("wordsnakeAdminToken", token());
+      setStatsStatus("통계를 불러오는 중...");
+      try {
+        const data = await request(`/admin/stats?scope=${encodeURIComponent(scope)}`);
+        renderStats(data.items || []);
+        setStatsStatus(scope === "all" ? "전체 통계" : `${data.day || "오늘"} 통계`);
+      } catch (error) {
+        setStatsStatus(error.message, true);
+      }
+    }
+
     els.loadBtn.addEventListener("click", loadPending);
+    els.statsTodayBtn.addEventListener("click", () => loadStats("day"));
+    els.statsAllBtn.addEventListener("click", () => loadStats("all"));
   </script>
 </body>
 </html>

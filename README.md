@@ -158,3 +158,15 @@ python .\tools\build_words_data_js.py --words .\public\words-blocked.txt --out .
 ```js
 window.WORDSNAKE_SUGGEST_API = "https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev";
 ```
+
+## 조회수와 게임 이벤트 통계
+
+방문자/페이지뷰는 Cloudflare Web Analytics를 사용합니다. Cloudflare 대시보드에서 Web Analytics 사이트를 만들고 발급된 token을 `public/analytics-config.js`에 넣으면 루트 페이지와 한국어/영어/일본어 게임 페이지에서 같은 설정을 읽습니다.
+
+```js
+window.WORD_CHAIN_SNAKE_ANALYTICS = {
+  cloudflareToken: "YOUR_CLOUDFLARE_WEB_ANALYTICS_TOKEN"
+};
+```
+
+게임 내부 행동은 같은 Worker의 `/events`로 집계합니다. 현재 기록하는 이벤트는 `game_start`, `game_finish_clear`, `game_finish_surrender`, `share_result`이며 언어와 보드 크기별로 KV에 누적됩니다. 관리자는 `admin.html`에서 토큰을 입력한 뒤 오늘 통계/전체 통계를 조회할 수 있습니다. JSON으로 직접 볼 때는 관리자 토큰을 붙여 `/admin/stats?scope=day` 또는 `/admin/stats?scope=all`을 호출합니다.

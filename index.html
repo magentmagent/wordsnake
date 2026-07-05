@@ -461,6 +461,13 @@
       align-items: center;
     }
 
+    .share-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
     .suggest-word {
       min-width: 0;
       padding: 9px 10px;
@@ -863,6 +870,10 @@
             <button id="submitScoreBtn" class="button primary" type="button">등록</button>
           </div>
           <p id="scoreSubmitStatus" class="result-status"></p>
+          <div class="share-row">
+            <p id="shareStatus" class="result-status"></p>
+            <button id="shareResultBtn" class="button" type="button">공유</button>
+          </div>
           <div class="leaderboard">
             <div class="leaderboard-title">
               <span>랭킹</span>
@@ -885,8 +896,10 @@
   <script src="public/words-blocked-data.js"></script>
   <script src="public/suggest-config.js"></script>
   <script src="public/ad-config.js"></script>
+  <script src="public/analytics-config.js"></script>
   <script>
     const DEFAULT_SIZE = 8;
+    const GAME_LANG = "ko";
     const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\/+$/, "");
     const GITHUB_ISSUE_URL = "https://github.com/magentmagent/wordsnake/issues/new";
     const START_PARAMS = new URLSearchParams(window.location.search);
@@ -1047,6 +1060,19 @@
       window.adsbygoogle.push({});
     }
 
+    function loadCloudflareAnalytics() {
+      const config = window.WORD_CHAIN_SNAKE_ANALYTICS || {};
+      const token = String(config.cloudflareToken || "").trim();
+      if (!token || document.querySelector("script[data-cf-beacon]")) return;
+      const script = document.createElement("script");
+      script.defer = true;
+      script.src = "https://static.cloudflareinsights.com/beacon.min.js";
+      script.dataset.cfBeacon = JSON.stringify({ token });
+      document.head.appendChild(script);
+    }
+
+    loadCloudflareAnalytics();
+
     let dictionary = buildDictionary(FALLBACK_WORDS);
     let blockedDictionary = buildDictionary([]);
     let state = initialState();
@@ -1075,6 +1101,8 @@
       playerNameInput: document.querySelector("#playerNameInput"),
       submitScoreBtn: document.querySelector("#submitScoreBtn"),
       scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
+      shareResultBtn: document.querySelector("#shareResultBtn"),
+      shareStatus: document.querySelector("#shareStatus"),
       leaderboardScope: document.querySelector("#leaderboardScope"),
       leaderboardList: document.querySelector("#leaderboardList"),
       introRankingBtn: document.querySelector("#introRankingBtn"),
@@ -1443,6 +1471,7 @@
       els.introRankingPanel.classList.add("hidden");
       newGame();
       setMessage("가장자리 칸을 눌러 시작점을 고르세요.", "ok");
+      trackGameEvent("game_start", { boardSize });
       render();
     }
 
@@ -1870,7 +1899,8 @@
         total,
         boardSize: state.board.length,
         turns: state.turn,
-        finishType: state.finishType || "surrender"
+        finishType: state.finishType || "surrender",
+        lang: GAME_LANG
       };
     }
 
@@ -1885,6 +1915,8 @@
       els.resultPanel.classList.add("hidden");
       els.scoreSubmitStatus.textContent = "";
       els.scoreSubmitStatus.classList.remove("error");
+      els.shareStatus.textContent = "";
+      els.shareStatus.classList.remove("error");
       els.leaderboardList.innerHTML = "";
     }
 
@@ -1895,6 +1927,7 @@
       els.resultTitle.textContent = type === "clear" ? "클리어 결과" : "항복 결과";
       setScoreSubmitStatus(SUGGEST_API ? "점수를 등록할 수 있습니다." : "랭킹 서버 주소가 아직 설정되지 않았습니다.", !SUGGEST_API);
       loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
+      trackGameEvent("game_finish", { finishType: type, score: state.score, filled: filledCount(state.board), turns: state.turn });
     }
 
     function renderResultPanel() {
@@ -1921,6 +1954,47 @@
     function setScoreSubmitStatus(message, isError = false) {
       els.scoreSubmitStatus.textContent = message;
       els.scoreSubmitStatus.classList.toggle("error", isError);
+    }
+
+    function setShareStatus(message, isError = false) {
+      els.shareStatus.textContent = message;
+      els.shareStatus.classList.toggle("error", isError);
+    }
+
+    function shareUrl() {
+      const path = GAME_LANG === "ko" ? "/wordsnake/" : `/wordsnake/${GAME_LANG}/`;
+      return `${window.location.origin}${path}`;
+    }
+
+    function shareText() {
+      const result = resultSnapshot();
+      const finish = result.finishType === "clear" ? "클리어" : "항복";
+      return [
+        "Word Chain Snake",
+        `${result.boardSize}x${result.boardSize} / 한국어 / ${finish} / ${result.score.toLocaleString("ko-KR")}점 / ${result.filled}칸`,
+        "긴 단어와 교차로 점수를 올려보세요.",
+        shareUrl()
+      ].join("\n");
+    }
+
+    async function shareResult() {
+      if (!state.finished) return;
+      const text = shareText();
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
+          setShareStatus("공유했습니다.");
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          setShareStatus("결과를 클립보드에 복사했습니다.");
+        } else {
+          setShareStatus("브라우저에서 공유를 지원하지 않습니다.", true);
+        }
+        trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score });
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        setShareStatus("공유하지 못했습니다.", true);
+      }
     }
 
     function renderLeaderboard(listEl, items, ownRank = null, ownItem = null) {
@@ -1965,7 +2039,7 @@
         return;
       }
       try {
-        const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10" });
+        const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10", lang: GAME_LANG });
         if (ownId) params.set("id", ownId);
         const response = await fetch(`${SUGGEST_API}/scores?${params.toString()}`, { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
@@ -1984,6 +2058,31 @@
 
     function selectedIntroBoardSize() {
       return Number(els.sizeSelect.value) || DEFAULT_SIZE;
+    }
+
+    function trackGameEvent(type, detail = {}) {
+      if (!SUGGEST_API) return;
+      const payload = {
+        type,
+        lang: GAME_LANG,
+        boardSize: Number(state.board && state.board.length) || boardSize || DEFAULT_SIZE,
+        ...detail
+      };
+      const body = JSON.stringify(payload);
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon(`${SUGGEST_API}/events`, blob)) return;
+        }
+        fetch(`${SUGGEST_API}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true
+        }).catch(() => {});
+      } catch {
+        // Analytics must never interrupt play.
+      }
     }
 
     async function showIntroRanking() {
@@ -2067,7 +2166,7 @@
         const response = await fetch(`${SUGGEST_API}/suggestions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ word, source: "wordsnake" })
+          body: JSON.stringify({ word, source: `word-chain-snake-${GAME_LANG}`, lang: GAME_LANG })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "제안 전송에 실패했습니다.");
@@ -2089,7 +2188,7 @@
     async function loadApprovedServerWords() {
       if (!SUGGEST_API) return;
       try {
-        const response = await fetch(`${SUGGEST_API}/words`, { cache: "no-store" });
+        const response = await fetch(`${SUGGEST_API}/words?lang=${encodeURIComponent(GAME_LANG)}`, { cache: "no-store" });
         if (!response.ok) return;
         addWordsToDictionary(await response.text());
         els.dictStatus.textContent = `사전 ${dictionary.wordSet.size.toLocaleString("ko-KR")}개 준비됨`;
@@ -2129,6 +2228,7 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.submitScoreBtn.addEventListener("click", submitScore);
+    els.shareResultBtn.addEventListener("click", shareResult);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

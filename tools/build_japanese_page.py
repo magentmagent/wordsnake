@@ -28,6 +28,7 @@ def main() -> None:
     )
     text = text.replace('<script src="public/suggest-config.js"></script>', '<script src="../public/suggest-config.js"></script>')
     text = text.replace('<script src="public/ad-config.js"></script>', '<script src="../public/ad-config.js"></script>')
+    text = text.replace('<script src="public/analytics-config.js"></script>', '<script src="../public/analytics-config.js"></script>')
 
     rule_block = """        <p class="intro-copy">ひらがなでしりとりをしながら、スネークのように盤面を進みます。</p>
 
@@ -103,6 +104,7 @@ def main() -> None:
         "<span>단어</span>": "<span>単語</span>",
         'placeholder="이름"': 'placeholder="名前"',
         ">등록<": ">登録<",
+        ">공유<": ">共有<",
         ">놓기<": ">置く<",
         ">되돌리기<": ">戻す<",
         ">항복<": ">降参<",
@@ -110,10 +112,7 @@ def main() -> None:
     for old, new in replacements.items():
         text = text.replace(old, new)
 
-    text = text.replace(
-        'const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\\/+$/, "");',
-        'const GAME_LANG = "ja";\n    const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\\/+$/, "");',
-    )
+    text = text.replace('const GAME_LANG = "ko";', 'const GAME_LANG = "ja";')
 
     fallback = """    const FALLBACK_WORDS = [
       "りんご", "ごりら", "らっぱ", "すし", "しお", "おにぎり", "ねこ", "こま", "まくら", "らくだ",
@@ -210,6 +209,13 @@ def main() -> None:
         'if (!response.ok) throw new Error(data.error || "점수 등록에 실패했습니다.");': 'if (!response.ok) throw new Error(data.error || "得点の登録に失敗しました。");',
         'setScoreSubmitStatus("점수가 등록되었습니다.");': 'setScoreSubmitStatus("得点を登録しました。");',
         'setScoreSubmitStatus(error.message || "점수 등록에 실패했습니다.", true);': 'setScoreSubmitStatus(error.message || "得点の登録に失敗しました。", true);',
+        'const finish = result.finishType === "clear" ? "클리어" : "항복";': 'const finish = result.finishType === "clear" ? "クリア" : "降参";',
+        '`${result.boardSize}x${result.boardSize} / 한국어 / ${finish} / ${result.score.toLocaleString("ko-KR")}점 / ${result.filled}칸`,': '`${result.boardSize}x${result.boardSize} / 日本語 / ${finish} / ${result.score.toLocaleString("ja-JP")}点 / ${result.filled}マス`,',
+        '"긴 단어와 교차로 점수를 올려보세요."': '"長い単語と交差で得点を伸ばしましょう。"',
+        'setShareStatus("공유했습니다.");': 'setShareStatus("共有しました。");',
+        'setShareStatus("결과를 클립보드에 복사했습니다.");': 'setShareStatus("結果をクリップボードにコピーしました。");',
+        'setShareStatus("브라우저에서 공유를 지원하지 않습니다.", true);': 'setShareStatus("このブラウザは共有に対応していません。", true);',
+        'setShareStatus("공유하지 못했습니다.", true);': 'setShareStatus("共有できませんでした。", true);',
         'title: `단어 제안: ${word}`': 'title: `単語の提案: ${word}`',
         'body: `제안 단어: ${word}\\n\\n게임에서 사전에 없는 단어로 확인되어 등록을 제안합니다.`': 'body: `提案単語: ${word}\\n\\nゲーム辞書にない単語として確認されたため、登録を提案します。`',
         'setIntroRankingStatus("랭킹을 불러오는 중...");': 'setIntroRankingStatus("ランキングを読み込み中...");',
@@ -232,28 +238,12 @@ def main() -> None:
         text = text.replace(old, new)
 
     text = text.replace(
-        'const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10" });',
-        'const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10", lang: GAME_LANG });',
-    )
-    text = text.replace(
-        'finishType: state.finishType || "surrender"',
-        'finishType: state.finishType || "surrender",\n        lang: GAME_LANG',
-    )
-    text = text.replace(
         'localStorage.getItem("wordsnakePlayerName")',
         'localStorage.getItem("wordChainSnakeJaPlayerName")',
     )
     text = text.replace(
         'localStorage.setItem("wordsnakePlayerName", payload.name);',
         'localStorage.setItem("wordChainSnakeJaPlayerName", payload.name);',
-    )
-    text = text.replace(
-        'body: JSON.stringify({ word, source: "wordsnake" })',
-        'body: JSON.stringify({ word, source: "word-chain-snake-ja", lang: GAME_LANG })',
-    )
-    text = text.replace(
-        'const response = await fetch(`${SUGGEST_API}/words`, { cache: "no-store" });',
-        'const response = await fetch(`${SUGGEST_API}/words?lang=${encodeURIComponent(GAME_LANG)}`, { cache: "no-store" });',
     )
     text = text.replace(
         'if (typeof window.WORDSNAKE_WORDS === "string" && window.WORDSNAKE_WORDS.trim()) {\n        loadDictionaryFromText(window.WORDSNAKE_WORDS);',

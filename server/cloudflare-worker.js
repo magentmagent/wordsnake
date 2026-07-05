@@ -27,6 +27,8 @@ async function handleRequest(request, env) {
     if (request.method === "GET" && path === "/words") return listApprovedWords(url, env);
     if (request.method === "POST" && path === "/scores") return createScore(request, env);
     if (request.method === "GET" && path === "/scores") return listScores(url, env);
+    if (request.method === "POST" && path === "/events") return createEvent(request, env);
+    if (request.method === "GET" && path === "/admin/stats") return listStats(request, url, env);
     if (request.method === "GET" && path === "/admin/suggestions") return listSuggestions(request, url, env);
 
     const match = path.match(/^\/admin\/suggestions\/([^/]+)\/(approve|reject)$/);
@@ -138,6 +140,47 @@ async function listScores(url, env) {
   return json({ items, ownRank, ownItem });
 }
 
+async function createEvent(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const lang = normalizeLang(body.lang);
+  const boardSize = clampInteger(body.boardSize, 6, 12);
+  const type = normalizeEventType(body.type, body.finishType);
+  if (!type) return json({ error: "invalid event" }, 400);
+
+  const day = new Date().toISOString().slice(0, 10);
+  await incrementStat(env, statKey("day", day, lang, boardSize, type), { scope: "day", day, lang, boardSize, type });
+  await incrementStat(env, statKey("all", "all", lang, boardSize, type), { scope: "all", day: "all", lang, boardSize, type });
+  return json({ ok: true });
+}
+
+async function listStats(request, url, env) {
+  requireAdmin(request, env);
+  const scope = url.searchParams.get("scope") === "all" ? "all" : "day";
+  const day = scope === "all" ? "all" : String(url.searchParams.get("date") || new Date().toISOString().slice(0, 10));
+  const prefix = `stats:${scope}:${day}:`;
+  const items = [];
+  let cursor;
+  do {
+    const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix, cursor });
+    for (const item of page.keys) {
+      const record = await readRecord(env, item.name);
+      if (record) items.push(record);
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  items.sort((a, b) => `${a.lang}:${a.boardSize}:${a.type}`.localeCompare(`${b.lang}:${b.boardSize}:${b.type}`));
+  return json({ scope, day, items });
+}
+
+async function incrementStat(env, key, base) {
+  const now = new Date().toISOString();
+  const existing = await readRecord(env, key);
+  const record = existing || { ...base, count: 0, createdAt: now };
+  record.count = Number(record.count || 0) + 1;
+  record.updatedAt = now;
+  await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
+}
+
 async function listScoreRecords(env, prefix) {
   const out = [];
   let cursor;
@@ -220,6 +263,18 @@ function scoreKey(boardSize, rankScore, id, lang = "ko") {
   return lang === "ko"
     ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
     : `score:${lang}:${boardSize}:${rankScore}:${stamp}:${id}`;
+}
+
+function normalizeEventType(type, finishType = "") {
+  const eventType = String(type || "").trim();
+  if (eventType === "game_start") return "game_start";
+  if (eventType === "share_result") return "share_result";
+  if (eventType === "game_finish") return finishType === "clear" ? "game_finish_clear" : "game_finish_surrender";
+  return "";
+}
+
+function statKey(scope, day, lang, boardSize, type) {
+  return `stats:${scope}:${day}:${lang}:${boardSize}:${type}`;
 }
 
 function clampInteger(value, min, max) {
