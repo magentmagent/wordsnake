@@ -1477,6 +1477,27 @@
       return true;
     }
 
+    function selectDirectionByKey(key) {
+      const keyMap = {
+        ArrowUp: "up",
+        ArrowDown: "down",
+        ArrowLeft: "left",
+        ArrowRight: "right"
+      };
+      const dir = keyMap[key];
+      if (!dir) return false;
+      const next = nextCellForDir(dir);
+      if (!next) return false;
+      return selectDirectionCell(next.x, next.y);
+    }
+
+    function handleKeyboardShortcut(event) {
+      if (!event.key.startsWith("Arrow")) return;
+      if (els.gameScreen.classList.contains("hidden")) return;
+      event.preventDefault();
+      selectDirectionByKey(event.key);
+    }
+
     function previewPlacement(rawWord) {
       const word = playableWordForInput(rawWord);
       const delta = DIRECTIONS[state.selectedDir];
@@ -1947,6 +1968,7 @@
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);
+    document.addEventListener("keydown", handleKeyboardShortcut);
     els.boardInput.addEventListener("keydown", event => {
       if (event.key === "Enter") placeCurrentWord();
     });
