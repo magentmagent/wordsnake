@@ -270,11 +270,41 @@
       overflow: visible;
     }
 
-    .path-triangle {
-      fill: #197278;
-      stroke: #f8f3ea;
-      stroke-width: 0.035;
+    .path-snake-line {
+      fill: none;
+      stroke: #fffdf8;
+      stroke-width: 0.16;
+      stroke-linecap: round;
       stroke-linejoin: round;
+      filter: drop-shadow(0 0.035px 0.055px rgba(32, 35, 39, 0.42));
+    }
+
+    .path-snake-line.animated {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: snake-path-grow 620ms ease-out forwards;
+    }
+
+    .path-snake-head {
+      fill: #fffdf8;
+      stroke: rgba(32, 35, 39, 0.42);
+      stroke-width: 0.025;
+      stroke-linejoin: round;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .path-snake-head.animated {
+      opacity: 0;
+      animation: snake-head-show 1ms linear forwards;
+    }
+
+    @keyframes snake-path-grow {
+      to { stroke-dashoffset: 0; }
+    }
+
+    @keyframes snake-head-show {
+      to { opacity: 1; }
     }
 
     .board-input {
@@ -1235,6 +1265,8 @@
     let state = initialState();
     let undoStack = [];
     let newCellsForAnimation = [];
+    let pathAnimation = null;
+    let pathAnimationTimer = null;
     let clearAnimation = null;
     let clearTimer = null;
     let exitGhostKeys = new Set();
@@ -1409,11 +1441,21 @@
       return maxTime + 180;
     }
 
+    function clearPathAnimation(shouldRender = false) {
+      if (pathAnimationTimer) {
+        window.clearTimeout(pathAnimationTimer);
+        pathAnimationTimer = null;
+      }
+      pathAnimation = null;
+      if (shouldRender) render();
+    }
+
     function startSnakeExit(message, onDone = null) {
       if (!state.snakeTrail.length) {
         if (typeof onDone === "function") onDone();
         return;
       }
+      clearPathAnimation(false);
       if (clearTimer) window.clearTimeout(clearTimer);
       exitGhostKeys = new Set();
       clearAnimation = buildClearAnimation(state.snakeTrail, state.board.length);
@@ -1626,7 +1668,14 @@
         state.appleCount += result.appleScore.apples.length;
       }
       state.usedWords.push(result.word);
+      const previousTrailLength = state.snakeTrail.length;
       state.snakeTrail.push(...routeCellsForPlacement(result, state.turn === 1));
+      const animatedFrom = Math.max(0, previousTrailLength - 1);
+      if (state.snakeTrail.length - animatedFrom > 1) {
+        clearPathAnimation(false);
+        pathAnimation = { fromIndex: animatedFrom, toIndex: state.snakeTrail.length - 1 };
+        pathAnimationTimer = window.setTimeout(() => clearPathAnimation(true), 720);
+      }
       state.log.unshift({
         word: result.word,
         dir: state.selectedDir,
@@ -1687,6 +1736,7 @@
       }
       restoreState(snapshot);
       newCellsForAnimation = [];
+      clearPathAnimation(false);
       clearAnimation = null;
       exitGhostKeys = new Set();
       if (clearTimer) {
@@ -1701,6 +1751,7 @@
       state = initialState();
       undoStack = [];
       newCellsForAnimation = [];
+      clearPathAnimation(false);
       clearAnimation = null;
       exitGhostKeys = new Set();
       if (clearTimer) {
@@ -1748,6 +1799,7 @@
       els.introScreen.classList.remove("hidden");
       els.boardInput.value = "";
       clearAnimation = null;
+      clearPathAnimation(false);
       exitGhostKeys = new Set();
       if (clearTimer) {
         window.clearTimeout(clearTimer);
@@ -1902,83 +1954,92 @@
       button.appendChild(span);
     }
 
-    function segmentLaneOffsets(segments) {
-      const grouped = new Map();
-      for (const segment of segments) {
-        const a = `${segment.from.x},${segment.from.y}`;
-        const b = `${segment.to.x},${segment.to.y}`;
-        const fromFirst = a < b;
-        const key = fromFirst ? `${a}|${b}` : `${b}|${a}`;
-        if (!grouped.has(key)) {
-          const start = fromFirst ? segment.from : segment.to;
-          const end = fromFirst ? segment.to : segment.from;
-          grouped.set(key, {
-            dx: end.x - start.x,
-            dy: end.y - start.y,
-            segments: [],
-          });
-        }
-        grouped.get(key).segments.push(segment);
-      }
-
-      const lanes = new Map();
-      for (const group of grouped.values()) {
-        const count = group.segments.length;
-        group.segments.forEach((segment, index) => {
-          const offset = (index - ((count - 1) / 2)) * 0.28;
-          lanes.set(segment.id, {
-            x: -group.dy * offset,
-            y: group.dx * offset,
-          });
-        });
-      }
-      return lanes;
+    function pathPoint(cell) {
+      return {
+        x: Number((cell.x + 0.5).toFixed(3)),
+        y: Number((cell.y + 0.5).toFixed(3))
+      };
     }
 
-    function makePathOverlay(size, trail) {
-      const segments = [];
-      for (let i = 1; i < trail.length; i += 1) {
-        const from = trail[i - 1];
-        const to = trail[i];
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        if (Math.abs(dx) + Math.abs(dy) !== 1) continue;
-        segments.push({ id: `${i}:${from.x},${from.y}:${to.x},${to.y}`, from, to, dx, dy });
+    function pathDataForTrail(trail) {
+      if (!trail.length) return "";
+      const [first, ...rest] = trail.map(pathPoint);
+      const commands = [`M ${first.x} ${first.y}`];
+      for (const point of rest) {
+        commands.push(`L ${point.x} ${point.y}`);
       }
+      return commands.join(" ");
+    }
 
+    function lastSegmentAngle(trail) {
+      if (trail.length < 2) return 0;
+      const from = trail[trail.length - 2];
+      const to = trail[trail.length - 1];
+      return Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
+    }
+
+    function appendSnakePath(svg, d, animated = false, id = "") {
+      if (!d) return null;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.classList.add("path-snake-line");
+      if (animated) path.classList.add("animated");
+      if (id) path.id = id;
+      path.setAttribute("d", d);
+      path.setAttribute("pathLength", "1");
+      svg.appendChild(path);
+      return path;
+    }
+
+    function appendStaticSnakeHead(svg, trail) {
+      if (trail.length < 2) return;
+      const point = pathPoint(trail[trail.length - 1]);
+      const angle = lastSegmentAngle(trail);
+      const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      head.classList.add("path-snake-head");
+      head.setAttribute("points", "0.20,0 -0.15,-0.13 -0.07,0 -0.15,0.13");
+      head.setAttribute("transform", `translate(${point.x} ${point.y}) rotate(${angle})`);
+      svg.appendChild(head);
+    }
+
+    function appendAnimatedSnakeHead(svg, pathId, duration = 620) {
+      const head = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      head.classList.add("path-snake-head", "animated");
+      head.setAttribute("points", "0.20,0 -0.15,-0.13 -0.07,0 -0.15,0.13");
+      const motion = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
+      motion.setAttribute("dur", `${duration}ms`);
+      motion.setAttribute("fill", "freeze");
+      motion.setAttribute("rotate", "auto");
+      const mpath = document.createElementNS("http://www.w3.org/2000/svg", "mpath");
+      mpath.setAttribute("href", `#${pathId}`);
+      motion.appendChild(mpath);
+      head.appendChild(motion);
+      svg.appendChild(head);
+    }
+
+    function makePathOverlay(size, trail, animation = null) {
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.classList.add("path-overlay");
       svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
       svg.setAttribute("aria-hidden", "true");
-      if (!segments.length) return svg;
+      if (trail.length < 2) return svg;
 
-      const lanes = segmentLaneOffsets(segments);
-      for (const segment of segments) {
-        const lane = lanes.get(segment.id) || { x: 0, y: 0 };
-        const cx = (segment.from.x + segment.to.x + 1) / 2 + lane.x;
-        const cy = (segment.from.y + segment.to.y + 1) / 2 + lane.y;
-        const length = 0.28;
-        const width = 0.20;
-        const px = -segment.dy;
-        const py = segment.dx;
-        const tip = {
-          x: cx + (segment.dx * length * 0.55),
-          y: cy + (segment.dy * length * 0.55),
-        };
-        const back = {
-          x: cx - (segment.dx * length * 0.45),
-          y: cy - (segment.dy * length * 0.45),
-        };
-        const points = [
-          `${tip.x.toFixed(3)},${tip.y.toFixed(3)}`,
-          `${(back.x + (px * width / 2)).toFixed(3)},${(back.y + (py * width / 2)).toFixed(3)}`,
-          `${(back.x - (px * width / 2)).toFixed(3)},${(back.y - (py * width / 2)).toFixed(3)}`,
-        ];
-        const triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        triangle.classList.add("path-triangle");
-        triangle.setAttribute("points", points.join(" "));
-        svg.appendChild(triangle);
+      const activeAnimation = animation
+        && Number.isInteger(animation.fromIndex)
+        && animation.fromIndex >= 0
+        && animation.fromIndex < trail.length - 1;
+      if (!activeAnimation) {
+        appendSnakePath(svg, pathDataForTrail(trail));
+        appendStaticSnakeHead(svg, trail);
+        return svg;
       }
+
+      const fromIndex = Math.max(0, Math.min(animation.fromIndex, trail.length - 2));
+      const stableTrail = trail.slice(0, fromIndex + 1);
+      const animatedTrail = trail.slice(fromIndex);
+      appendSnakePath(svg, pathDataForTrail(stableTrail));
+      const animatedPathId = `snake-motion-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      appendSnakePath(svg, pathDataForTrail(animatedTrail), true, animatedPathId);
+      appendAnimatedSnakeHead(svg, animatedPathId);
       return svg;
     }
 
@@ -2016,7 +2077,7 @@
       const splitFactor = Math.max(24, 34 - ((size - 8) * 2.5));
       els.board.style.setProperty("--cell-font-size", `calc(${normalFactor}cqw / ${size})`);
       els.board.style.setProperty("--initial-law-font-size", `calc(${splitFactor}cqw / ${size})`);
-      els.board.appendChild(makePathOverlay(size, state.snakeTrail));
+      els.board.appendChild(makePathOverlay(size, state.snakeTrail, pathAnimation));
       const apples = appleMap(state);
       const collectedApples = new Set(state.collectedApples || []);
       for (let y = 0; y < size; y += 1) {
