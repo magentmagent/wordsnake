@@ -104,13 +104,17 @@ def marker_texts(value: object) -> set[str]:
     return {str(value).lower()}
 
 
-def marker_set(item: dict) -> set[str]:
+def marker_set_from_keys(item: dict, keys: tuple[str, ...]) -> set[str]:
     texts = set()
-    for key in ("tags", "categories", "topics"):
+    for key in keys:
         texts.update(marker_texts(item.get(key)))
+    return texts
+
+
+def marker_set(item: dict) -> set[str]:
+    texts = marker_set_from_keys(item, ("tags", "topics"))
     for sense in item.get("senses") or []:
-        for key in ("tags", "categories", "topics"):
-            texts.update(marker_texts(sense.get(key)))
+        texts.update(marker_set_from_keys(sense, ("tags", "categories", "topics")))
     return texts
 
 
@@ -129,6 +133,21 @@ def has_excluded_marker(item: dict) -> bool:
 
 def has_abbreviation_marker(item: dict) -> bool:
     return has_marker(marker_set(item), ABBREVIATION_MARKERS)
+
+
+def has_playable_sense(item: dict) -> bool:
+    page_markers = marker_set_from_keys(item, ("tags", "topics"))
+    if has_marker(page_markers, EXCLUDED_MARKERS):
+        return False
+
+    senses = item.get("senses") or []
+    if not senses:
+        return True
+    for sense in senses:
+        sense_markers = marker_set_from_keys(sense, ("tags", "categories", "topics"))
+        if not has_marker(sense_markers, EXCLUDED_MARKERS):
+            return True
+    return False
 
 
 def normalized_word(value: object) -> str:
@@ -178,6 +197,8 @@ def main() -> int:
     with gzip.open(source, "rt", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             lines += 1
+            if '"lang_code": "en"' not in line and '"lang_code":"en"' not in line:
+                continue
             try:
                 item = json.loads(line)
             except json.JSONDecodeError:
@@ -186,12 +207,12 @@ def main() -> int:
                 continue
             if allowed_pos and item.get("pos") not in allowed_pos:
                 continue
-            is_excluded = has_excluded_marker(item)
             is_abbreviation = has_abbreviation_marker(item)
-            if is_abbreviation or is_excluded:
+            is_playable = has_playable_sense(item)
+            if is_abbreviation or not is_playable:
                 blocked_entries += 1
                 add_blocked_word(blocked_words, item.get("word"))
-            if is_excluded:
+            if not is_playable:
                 continue
 
             english_entries += 1
