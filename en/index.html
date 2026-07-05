@@ -8,6 +8,10 @@
   <meta property="og:title" content="word chain snake">
   <meta property="og:description" content="A mobile English word-chain snake puzzle.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://magentmagent.github.io/wordsnake/en/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="word chain snake">
+  <meta name="twitter:description" content="A mobile word-chain puzzle crossed with snake movement.">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -461,9 +465,20 @@
       align-items: center;
     }
 
-    .share-row {
+    .share-actions {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .share-actions .button {
+      min-width: 0;
+      padding-inline: 8px;
+    }
+
+    .share-status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       align-items: center;
     }
@@ -867,9 +882,13 @@
             <button id="submitScoreBtn" class="button primary" type="button">Upload</button>
           </div>
           <p id="scoreSubmitStatus" class="result-status"></p>
-          <div class="share-row">
+          <div class="share-actions">
+            <button id="shareXBtn" class="button" type="button">X</button>
+            <button id="shareNativeBtn" class="button" type="button">Share</button>
+            <button id="copyResultBtn" class="button" type="button">Copy</button>
+          </div>
+          <div class="share-status-row">
             <p id="shareStatus" class="result-status"></p>
-            <button id="shareResultBtn" class="button" type="button">Share</button>
           </div>
           <div class="leaderboard">
             <div class="leaderboard-title">
@@ -1058,7 +1077,9 @@
       playerNameInput: document.querySelector("#playerNameInput"),
       submitScoreBtn: document.querySelector("#submitScoreBtn"),
       scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
-      shareResultBtn: document.querySelector("#shareResultBtn"),
+      shareXBtn: document.querySelector("#shareXBtn"),
+      shareNativeBtn: document.querySelector("#shareNativeBtn"),
+      copyResultBtn: document.querySelector("#copyResultBtn"),
       shareStatus: document.querySelector("#shareStatus"),
       leaderboardScope: document.querySelector("#leaderboardScope"),
       leaderboardList: document.querySelector("#leaderboardList"),
@@ -1921,34 +1942,68 @@
       return `${window.location.origin}${path}`;
     }
 
-    function shareText() {
+    function shareSummary() {
       const result = resultSnapshot();
       const finish = result.finishType === "clear" ? "Clear" : "Surrender";
+      return `${result.boardSize}x${result.boardSize} English ${finish} ${result.score.toLocaleString("en-US")} pts`;
+    }
+
+    function shareText() {
+      const result = resultSnapshot();
       return [
-        "Word Chain Snake",
-        `${result.boardSize}x${result.boardSize} / English / ${finish} / ${result.score.toLocaleString("en-US")} pts / ${result.filled} tiles`,
+        `Word Chain Snake - ${shareSummary()}`,
+        `${result.filled} / ${result.total} tiles, ${result.turns} words`,
         "Score higher with longer words and crossings.",
         shareUrl()
       ].join("\n");
     }
 
-    async function shareResult() {
+    function xShareText() {
+      return `${shareSummary()}\nA word-chain puzzle crossed with snake movement`;
+    }
+
+    function trackShare(channel) {
+      trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score, channel });
+    }
+
+    function shareToX() {
+      if (!state.finished) return;
+      const params = new URLSearchParams({
+        text: xShareText(),
+        url: shareUrl(),
+        hashtags: "WordChainSnake"
+      });
+      window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener,noreferrer");
+      setShareStatus("Opened X share window.");
+      trackShare("x");
+    }
+
+    async function shareNative() {
       if (!state.finished) return;
       const text = shareText();
       try {
         if (navigator.share) {
           await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
           setShareStatus("Shared.");
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          setShareStatus("Result copied to clipboard.");
         } else {
-          setShareStatus("This browser does not support sharing.", true);
+          await copyResult();
+          return;
         }
-        trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score });
+        trackShare("native");
       } catch (error) {
         if (error && error.name === "AbortError") return;
         setShareStatus("Could not share.", true);
+      }
+    }
+
+    async function copyResult() {
+      if (!state.finished) return;
+      try {
+        await navigator.clipboard.writeText(shareText());
+        setShareStatus("Result copied to clipboard.");
+        trackShare("copy");
+      } catch {
+        setShareStatus("Could not copy to clipboard.", true);
       }
     }
 
@@ -2183,7 +2238,9 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.submitScoreBtn.addEventListener("click", submitScore);
-    els.shareResultBtn.addEventListener("click", shareResult);
+    els.shareXBtn.addEventListener("click", shareToX);
+    els.shareNativeBtn.addEventListener("click", shareNative);
+    els.copyResultBtn.addEventListener("click", copyResult);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

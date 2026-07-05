@@ -8,6 +8,10 @@
   <meta property="og:title" content="word chain snake">
   <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://magentmagent.github.io/wordsnake/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="word chain snake">
+  <meta name="twitter:description" content="끝말잇기와 스네이크를 결합한 모바일 단어 퍼즐.">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -461,9 +465,20 @@
       align-items: center;
     }
 
-    .share-row {
+    .share-actions {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .share-actions .button {
+      min-width: 0;
+      padding-inline: 8px;
+    }
+
+    .share-status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       align-items: center;
     }
@@ -870,9 +885,13 @@
             <button id="submitScoreBtn" class="button primary" type="button">등록</button>
           </div>
           <p id="scoreSubmitStatus" class="result-status"></p>
-          <div class="share-row">
+          <div class="share-actions">
+            <button id="shareXBtn" class="button" type="button">X</button>
+            <button id="shareNativeBtn" class="button" type="button">공유</button>
+            <button id="copyResultBtn" class="button" type="button">복사</button>
+          </div>
+          <div class="share-status-row">
             <p id="shareStatus" class="result-status"></p>
-            <button id="shareResultBtn" class="button" type="button">공유</button>
           </div>
           <div class="leaderboard">
             <div class="leaderboard-title">
@@ -1101,7 +1120,9 @@
       playerNameInput: document.querySelector("#playerNameInput"),
       submitScoreBtn: document.querySelector("#submitScoreBtn"),
       scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
-      shareResultBtn: document.querySelector("#shareResultBtn"),
+      shareXBtn: document.querySelector("#shareXBtn"),
+      shareNativeBtn: document.querySelector("#shareNativeBtn"),
+      copyResultBtn: document.querySelector("#copyResultBtn"),
       shareStatus: document.querySelector("#shareStatus"),
       leaderboardScope: document.querySelector("#leaderboardScope"),
       leaderboardList: document.querySelector("#leaderboardList"),
@@ -1966,34 +1987,68 @@
       return `${window.location.origin}${path}`;
     }
 
-    function shareText() {
+    function shareSummary() {
       const result = resultSnapshot();
       const finish = result.finishType === "clear" ? "클리어" : "항복";
+      return `${result.boardSize}x${result.boardSize} 한국어 ${finish} ${result.score.toLocaleString("ko-KR")}점`;
+    }
+
+    function shareText() {
+      const result = resultSnapshot();
       return [
-        "Word Chain Snake",
-        `${result.boardSize}x${result.boardSize} / 한국어 / ${finish} / ${result.score.toLocaleString("ko-KR")}점 / ${result.filled}칸`,
+        `Word Chain Snake - ${shareSummary()}`,
+        `${result.filled} / ${result.total}칸, ${result.turns}개 단어`,
         "긴 단어와 교차로 점수를 올려보세요.",
         shareUrl()
       ].join("\n");
     }
 
-    async function shareResult() {
+    function xShareText() {
+      return `${shareSummary()}\n끝말잇기와 스네이크를 합친 단어 퍼즐`;
+    }
+
+    function trackShare(channel) {
+      trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score, channel });
+    }
+
+    function shareToX() {
+      if (!state.finished) return;
+      const params = new URLSearchParams({
+        text: xShareText(),
+        url: shareUrl(),
+        hashtags: "WordChainSnake"
+      });
+      window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener,noreferrer");
+      setShareStatus("X 공유 창을 열었습니다.");
+      trackShare("x");
+    }
+
+    async function shareNative() {
       if (!state.finished) return;
       const text = shareText();
       try {
         if (navigator.share) {
           await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
           setShareStatus("공유했습니다.");
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          setShareStatus("결과를 클립보드에 복사했습니다.");
         } else {
-          setShareStatus("브라우저에서 공유를 지원하지 않습니다.", true);
+          await copyResult();
+          return;
         }
-        trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score });
+        trackShare("native");
       } catch (error) {
         if (error && error.name === "AbortError") return;
         setShareStatus("공유하지 못했습니다.", true);
+      }
+    }
+
+    async function copyResult() {
+      if (!state.finished) return;
+      try {
+        await navigator.clipboard.writeText(shareText());
+        setShareStatus("결과를 클립보드에 복사했습니다.");
+        trackShare("copy");
+      } catch {
+        setShareStatus("클립보드에 복사하지 못했습니다.", true);
       }
     }
 
@@ -2228,7 +2283,9 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.submitScoreBtn.addEventListener("click", submitScore);
-    els.shareResultBtn.addEventListener("click", shareResult);
+    els.shareXBtn.addEventListener("click", shareToX);
+    els.shareNativeBtn.addEventListener("click", shareNative);
+    els.copyResultBtn.addEventListener("click", copyResult);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

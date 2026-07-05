@@ -8,6 +8,10 @@
   <meta property="og:title" content="word chain snake">
   <meta property="og:description" content="ひらがなで遊ぶ日本語 word chain snake。">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://magentmagent.github.io/wordsnake/ja/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="word chain snake">
+  <meta name="twitter:description" content="しりとりとスネークを組み合わせたモバイル単語パズル。">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -461,9 +465,20 @@
       align-items: center;
     }
 
-    .share-row {
+    .share-actions {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .share-actions .button {
+      min-width: 0;
+      padding-inline: 8px;
+    }
+
+    .share-status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       align-items: center;
     }
@@ -867,9 +882,13 @@
             <button id="submitScoreBtn" class="button primary" type="button">登録</button>
           </div>
           <p id="scoreSubmitStatus" class="result-status"></p>
-          <div class="share-row">
+          <div class="share-actions">
+            <button id="shareXBtn" class="button" type="button">X</button>
+            <button id="shareNativeBtn" class="button" type="button">共有</button>
+            <button id="copyResultBtn" class="button" type="button">コピー</button>
+          </div>
+          <div class="share-status-row">
             <p id="shareStatus" class="result-status"></p>
-            <button id="shareResultBtn" class="button" type="button">共有</button>
           </div>
           <div class="leaderboard">
             <div class="leaderboard-title">
@@ -1072,7 +1091,9 @@
       playerNameInput: document.querySelector("#playerNameInput"),
       submitScoreBtn: document.querySelector("#submitScoreBtn"),
       scoreSubmitStatus: document.querySelector("#scoreSubmitStatus"),
-      shareResultBtn: document.querySelector("#shareResultBtn"),
+      shareXBtn: document.querySelector("#shareXBtn"),
+      shareNativeBtn: document.querySelector("#shareNativeBtn"),
+      copyResultBtn: document.querySelector("#copyResultBtn"),
       shareStatus: document.querySelector("#shareStatus"),
       leaderboardScope: document.querySelector("#leaderboardScope"),
       leaderboardList: document.querySelector("#leaderboardList"),
@@ -1520,7 +1541,7 @@
       if (clearAnimation) return false;
       if (!dir) return false;
       state.selectedDir = dir;
-      setMessage(state.turn === 0 ? "단어를 입력하고 놓기를 누르세요." : "뒤 글자를 입력하고 놓기를 누르세요.", "ok");
+      setMessage(state.turn === 0 ? "単語を入力して置いてください。" : "続きの文字を入力して置いてください。", "ok");
       render();
       focusBoardInput();
       return true;
@@ -1753,7 +1774,7 @@
           }
           const label = initialLawMark
             ? `${initialLawMark.from}/${initialLawMark.to} 두음법칙 표시`
-            : cellLetter || previewLetter || "빈 칸";
+            : cellLetter || previewLetter || "空きマス";
           button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${label}`);
           if (!exiting && isEdge(state.board, x, y)) button.classList.add("edge");
           if (cellLetter) button.classList.add("filled");
@@ -1793,7 +1814,7 @@
       const total = size * size;
       const head = state.head && state.board[state.head.y][state.head.x] ? state.board[state.head.y][state.head.x] : "-";
       const startLabel = head === "-" ? head : headStartLetters(head).join("/");
-      els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${startLabel} 뒤 글자 입력`;
+      els.boardInput.placeholder = state.turn === 0 ? "ひらがな入力" : `${startLabel} に続ける`;
       els.scoreText.textContent = `${state.score}点 · ${filled} / ${total}`;
     }
 
@@ -1937,34 +1958,68 @@
       return `${window.location.origin}${path}`;
     }
 
-    function shareText() {
+    function shareSummary() {
       const result = resultSnapshot();
       const finish = result.finishType === "clear" ? "クリア" : "降参";
+      return `${result.boardSize}x${result.boardSize} 日本語 ${finish} ${result.score.toLocaleString("ja-JP")}点`;
+    }
+
+    function shareText() {
+      const result = resultSnapshot();
       return [
-        "Word Chain Snake",
-        `${result.boardSize}x${result.boardSize} / 日本語 / ${finish} / ${result.score.toLocaleString("ja-JP")}点 / ${result.filled}マス`,
+        `Word Chain Snake - ${shareSummary()}`,
+        `${result.filled} / ${result.total}マス, ${result.turns}単語`,
         "長い単語と交差で得点を伸ばしましょう。",
         shareUrl()
       ].join("\n");
     }
 
-    async function shareResult() {
+    function xShareText() {
+      return `${shareSummary()}\nしりとりとスネークを組み合わせた単語パズル`;
+    }
+
+    function trackShare(channel) {
+      trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score, channel });
+    }
+
+    function shareToX() {
+      if (!state.finished) return;
+      const params = new URLSearchParams({
+        text: xShareText(),
+        url: shareUrl(),
+        hashtags: "WordChainSnake"
+      });
+      window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener,noreferrer");
+      setShareStatus("Xの共有画面を開きました。");
+      trackShare("x");
+    }
+
+    async function shareNative() {
       if (!state.finished) return;
       const text = shareText();
       try {
         if (navigator.share) {
           await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
           setShareStatus("共有しました。");
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          setShareStatus("結果をクリップボードにコピーしました。");
         } else {
-          setShareStatus("このブラウザは共有に対応していません。", true);
+          await copyResult();
+          return;
         }
-        trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score });
+        trackShare("native");
       } catch (error) {
         if (error && error.name === "AbortError") return;
         setShareStatus("共有できませんでした。", true);
+      }
+    }
+
+    async function copyResult() {
+      if (!state.finished) return;
+      try {
+        await navigator.clipboard.writeText(shareText());
+        setShareStatus("結果をクリップボードにコピーしました。");
+        trackShare("copy");
+      } catch {
+        setShareStatus("クリップボードにコピーできませんでした。", true);
       }
     }
 
@@ -2199,7 +2254,9 @@
     els.placeBtn.addEventListener("click", placeCurrentWord);
     els.suggestBtn.addEventListener("click", submitWordSuggestion);
     els.submitScoreBtn.addEventListener("click", submitScore);
-    els.shareResultBtn.addEventListener("click", shareResult);
+    els.shareXBtn.addEventListener("click", shareToX);
+    els.shareNativeBtn.addEventListener("click", shareNative);
+    els.copyResultBtn.addEventListener("click", copyResult);
     els.undoBtn.addEventListener("click", undo);
     els.newBtn.addEventListener("click", surrenderGame);
     els.board.addEventListener("click", focusBoardInput);

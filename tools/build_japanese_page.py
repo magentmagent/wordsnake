@@ -23,6 +23,14 @@ def main() -> None:
         'content="ひらがなで遊ぶ日本語 word chain snake。"',
     )
     text = text.replace(
+        'content="https://magentmagent.github.io/wordsnake/"',
+        'content="https://magentmagent.github.io/wordsnake/ja/"',
+    )
+    text = text.replace(
+        'content="끝말잇기와 스네이크를 결합한 모바일 단어 퍼즐."',
+        'content="しりとりとスネークを組み合わせたモバイル単語パズル。"',
+    )
+    text = text.replace(
         '<script src="public/words-data.js"></script>\n  <script src="public/words-blocked-data.js"></script>',
         '<script src="../public/words-ja-data.js"></script>\n  <script src="../public/words-ja-blocked-data.js"></script>',
     )
@@ -105,6 +113,7 @@ def main() -> None:
         'placeholder="이름"': 'placeholder="名前"',
         ">등록<": ">登録<",
         ">공유<": ">共有<",
+        ">복사<": ">コピー<",
         ">놓기<": ">置く<",
         ">되돌리기<": ">戻す<",
         ">항복<": ">降参<",
@@ -186,7 +195,10 @@ def main() -> None:
         'setMessage("한 턴 되돌렸습니다.", "ok");': 'setMessage("一手戻しました。", "ok");',
         'setMessage("가장자리 칸을 눌러 시작점을 고르세요.", "ok");': 'setMessage("端のマスを押して開始位置を選んでください。", "ok");',
         'setMessage(state.turn === 0 ? "단어를 입력하고 놓기를 누르세요." : "뒷 글자를 입력하고 놓기를 누르세요.", "ok");': 'setMessage(state.turn === 0 ? "単語を入力して置いてください。" : "続きの文字を入力して置いてください。", "ok");',
+        'setMessage(state.turn === 0 ? "단어를 입력하고 놓기를 누르세요." : "뒤 글자를 입력하고 놓기를 누르세요.", "ok");': 'setMessage(state.turn === 0 ? "単語を入力して置いてください。" : "続きの文字を入力して置いてください。", "ok");',
         'els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${startLabel} 뒷 글자 입력`;': 'els.boardInput.placeholder = state.turn === 0 ? "ひらがな入力" : `${startLabel} に続ける`;',
+        'els.boardInput.placeholder = state.turn === 0 ? "단어 입력" : `${startLabel} 뒤 글자 입력`;': 'els.boardInput.placeholder = state.turn === 0 ? "ひらがな入力" : `${startLabel} に続ける`;',
+        '"빈 칸"': '"空きマス"',
         'els.scoreText.textContent = `${state.score}점 · ${filled} / ${total}`;': 'els.scoreText.textContent = `${state.score}点 · ${filled} / ${total}`;',
         '.slice(0, 16) || "익명";': '.slice(0, 16) || "匿名";',
         'els.resultTitle.textContent = type === "clear" ? "클리어 결과" : "항복 결과";': 'els.resultTitle.textContent = type === "clear" ? "クリア結果" : "降参結果";',
@@ -210,12 +222,15 @@ def main() -> None:
         'setScoreSubmitStatus("점수가 등록되었습니다.");': 'setScoreSubmitStatus("得点を登録しました。");',
         'setScoreSubmitStatus(error.message || "점수 등록에 실패했습니다.", true);': 'setScoreSubmitStatus(error.message || "得点の登録に失敗しました。", true);',
         'const finish = result.finishType === "clear" ? "클리어" : "항복";': 'const finish = result.finishType === "clear" ? "クリア" : "降参";',
-        '`${result.boardSize}x${result.boardSize} / 한국어 / ${finish} / ${result.score.toLocaleString("ko-KR")}점 / ${result.filled}칸`,': '`${result.boardSize}x${result.boardSize} / 日本語 / ${finish} / ${result.score.toLocaleString("ja-JP")}点 / ${result.filled}マス`,',
+        'return `${result.boardSize}x${result.boardSize} 한국어 ${finish} ${result.score.toLocaleString("ko-KR")}점`;': 'return `${result.boardSize}x${result.boardSize} 日本語 ${finish} ${result.score.toLocaleString("ja-JP")}点`;',
+        '`${result.filled} / ${result.total}칸, ${result.turns}개 단어`,': '`${result.filled} / ${result.total}マス, ${result.turns}単語`,',
         '"긴 단어와 교차로 점수를 올려보세요."': '"長い単語と交差で得点を伸ばしましょう。"',
+        'return `${shareSummary()}\\n끝말잇기와 스네이크를 합친 단어 퍼즐`;': 'return `${shareSummary()}\\nしりとりとスネークを組み合わせた単語パズル`;',
+        'setShareStatus("X 공유 창을 열었습니다.");': 'setShareStatus("Xの共有画面を開きました。");',
         'setShareStatus("공유했습니다.");': 'setShareStatus("共有しました。");',
         'setShareStatus("결과를 클립보드에 복사했습니다.");': 'setShareStatus("結果をクリップボードにコピーしました。");',
-        'setShareStatus("브라우저에서 공유를 지원하지 않습니다.", true);': 'setShareStatus("このブラウザは共有に対応していません。", true);',
         'setShareStatus("공유하지 못했습니다.", true);': 'setShareStatus("共有できませんでした。", true);',
+        'setShareStatus("클립보드에 복사하지 못했습니다.", true);': 'setShareStatus("クリップボードにコピーできませんでした。", true);',
         'title: `단어 제안: ${word}`': 'title: `単語の提案: ${word}`',
         'body: `제안 단어: ${word}\\n\\n게임에서 사전에 없는 단어로 확인되어 등록을 제안합니다.`': 'body: `提案単語: ${word}\\n\\nゲーム辞書にない単語として確認されたため、登録を提案します。`',
         'setIntroRankingStatus("랭킹을 불러오는 중...");': 'setIntroRankingStatus("ランキングを読み込み中...");',

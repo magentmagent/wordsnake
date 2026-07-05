@@ -23,6 +23,14 @@ def main():
         'content="A mobile English word-chain snake puzzle."',
     )
     text = text.replace(
+        'content="https://magentmagent.github.io/wordsnake/"',
+        'content="https://magentmagent.github.io/wordsnake/en/"',
+    )
+    text = text.replace(
+        'content="끝말잇기와 스네이크를 결합한 모바일 단어 퍼즐."',
+        'content="A mobile word-chain puzzle crossed with snake movement."',
+    )
+    text = text.replace(
         '<script src="public/words-data.js"></script>\n  <script src="public/words-blocked-data.js"></script>',
         '<script src="../public/words-en-data.js"></script>\n  <script src="../public/words-en-blocked-data.js"></script>',
     )
@@ -116,6 +124,7 @@ def main():
         'placeholder="이름"': 'placeholder="Name"',
         ">등록<": ">Upload<",
         ">공유<": ">Share<",
+        ">복사<": ">Copy<",
         ">놓기<": ">Place<",
         ">되돌리기<": ">Undo<",
         ">항복<": ">Surrender<",
@@ -219,12 +228,15 @@ def main():
         'setScoreSubmitStatus("점수가 등록되었습니다.");': 'setScoreSubmitStatus("Score uploaded.");',
         'setScoreSubmitStatus(error.message || "점수 등록에 실패했습니다.", true);': 'setScoreSubmitStatus(error.message || "Could not upload score.", true);',
         'const finish = result.finishType === "clear" ? "클리어" : "항복";': 'const finish = result.finishType === "clear" ? "Clear" : "Surrender";',
-        '`${result.boardSize}x${result.boardSize} / 한국어 / ${finish} / ${result.score.toLocaleString("ko-KR")}점 / ${result.filled}칸`,': '`${result.boardSize}x${result.boardSize} / English / ${finish} / ${result.score.toLocaleString("en-US")} pts / ${result.filled} tiles`,',
+        'return `${result.boardSize}x${result.boardSize} 한국어 ${finish} ${result.score.toLocaleString("ko-KR")}점`;': 'return `${result.boardSize}x${result.boardSize} English ${finish} ${result.score.toLocaleString("en-US")} pts`;',
+        '`${result.filled} / ${result.total}칸, ${result.turns}개 단어`,': '`${result.filled} / ${result.total} tiles, ${result.turns} words`,',
         '"긴 단어와 교차로 점수를 올려보세요."': '"Score higher with longer words and crossings."',
+        'return `${shareSummary()}\\n끝말잇기와 스네이크를 합친 단어 퍼즐`;': 'return `${shareSummary()}\\nA word-chain puzzle crossed with snake movement`;',
+        'setShareStatus("X 공유 창을 열었습니다.");': 'setShareStatus("Opened X share window.");',
         'setShareStatus("공유했습니다.");': 'setShareStatus("Shared.");',
         'setShareStatus("결과를 클립보드에 복사했습니다.");': 'setShareStatus("Result copied to clipboard.");',
-        'setShareStatus("브라우저에서 공유를 지원하지 않습니다.", true);': 'setShareStatus("This browser does not support sharing.", true);',
         'setShareStatus("공유하지 못했습니다.", true);': 'setShareStatus("Could not share.", true);',
+        'setShareStatus("클립보드에 복사하지 못했습니다.", true);': 'setShareStatus("Could not copy to clipboard.", true);',
         'title: `단어 제안: ${word}`': 'title: `Word suggestion: ${word}`',
         'body: `제안 단어: ${word}\\n\\n게임에서 사전에 없는 단어로 확인되어 등록을 제안합니다.`': 'body: `Suggested word: ${word}\\n\\nThis word was not found in the game dictionary and is being suggested for review.`',
         'setSuggestStatus("순수 한글 2글자 이상 단어만 제안할 수 있습니다.", true);': 'setSuggestStatus("Only A-Z words with at least 2 letters can be suggested.", true);',
