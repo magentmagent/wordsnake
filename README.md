@@ -58,6 +58,19 @@ python .\tools\build_english_page.py
 
 영어판은 약어/이니셜류 항목을 `public/words-en-blocked.txt`에 따로 두고, 일반 단어로도 인정되는 같은 철자는 허용 사전이 우선합니다. 영어판 제안 단어와 랭킹은 서버에 `lang=en`으로 전송되어 한국어판 데이터와 분리됩니다.
 
+## 일본어판
+
+일본어판은 본판과 합치지 않고 `ja/index.html`로 분리되어 있습니다. 입력과 게임판 표시는 히라가나만 사용하며, Wiktextract의 일본어 항목에서 표제어·발음·ruby 읽기를 히라가나로 추출합니다. `ん`으로 끝나는 단어는 일본어しりとり 규칙에 따라 `public/words-ja-blocked.txt`에 따로 둡니다.
+
+```powershell
+python .\tools\build_wiktextract_japanese_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-ja.txt --blocked-out .\public\words-ja-blocked.txt
+python .\tools\build_words_data_js.py --words .\public\words-ja.txt --out .\public\words-ja-data.js --global-name window.WORDSNAKE_WORDS_JA
+python .\tools\build_words_data_js.py --words .\public\words-ja-blocked.txt --out .\public\words-ja-blocked-data.js --global-name window.WORDSNAKE_BLOCKED_WORDS_JA
+python .\tools\build_japanese_page.py
+```
+
+작은 가나(`ゃ/ゅ/ょ/っ` 등)는 교차와 이어붙이기 판정에서 큰 가나(`や/ゆ/よ/つ` 등)처럼 읽을 수 있게 처리합니다. 일본어판 제안 단어와 랭킹은 서버에 `lang=ja`로 전송됩니다.
+
 ## 표준국어대사전 API 빌드
 
 API 키는 클라이언트 HTML에 넣지 마세요. 브라우저에서 직접 API를 호출하면 키가 노출됩니다. 로컬 Python 스크립트로 `words.txt`를 만든 뒤 게임에서 파일로 불러오거나 `public/words.txt`로 보관하세요.
