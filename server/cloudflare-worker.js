@@ -112,6 +112,7 @@ async function createScore(request, env) {
   const lang = normalizeLang(body.lang);
   const score = clampInteger(body.score, 0, 999999999);
   const boardSize = clampInteger(body.boardSize, 6, 12);
+  const mode = normalizeMode(body.mode);
   const total = clampInteger(body.total, boardSize * boardSize, boardSize * boardSize);
   const filled = clampInteger(body.filled, 0, total);
   const turns = clampInteger(body.turns, 0, 9999);
@@ -120,8 +121,8 @@ async function createScore(request, env) {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const rankScore = String(999999999 - score).padStart(9, "0");
-  const key = scoreKey(boardSize, rankScore, id, lang);
-  const record = { id, lang, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
+  const key = scoreKey(boardSize, rankScore, id, lang, mode);
+  const record = { id, lang, mode, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
 
   await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
   return json({ ok: true, item: record }, 201);
@@ -130,9 +131,10 @@ async function createScore(request, env) {
 async function listScores(url, env) {
   const lang = normalizeLang(url.searchParams.get("lang"));
   const boardSize = clampInteger(url.searchParams.get("boardSize"), 6, 12);
+  const mode = normalizeMode(url.searchParams.get("mode"));
   const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
   const id = String(url.searchParams.get("id") || "").trim();
-  const records = await listScoreRecords(env, scorePrefix(boardSize, lang));
+  const records = await listScoreRecords(env, scorePrefix(boardSize, lang, mode));
   const items = records.slice(0, limit);
   const ownIndex = id ? records.findIndex(item => item.id === id) : -1;
   const ownRank = ownIndex >= 0 ? ownIndex + 1 : null;
@@ -144,12 +146,13 @@ async function createEvent(request, env) {
   const body = await request.json().catch(() => ({}));
   const lang = normalizeLang(body.lang);
   const boardSize = clampInteger(body.boardSize, 6, 12);
+  const mode = normalizeMode(body.mode);
   const type = normalizeEventType(body.type, body.finishType);
   if (!type) return json({ error: "invalid event" }, 400);
 
   const day = new Date().toISOString().slice(0, 10);
-  await incrementStat(env, statKey("day", day, lang, boardSize, type), { scope: "day", day, lang, boardSize, type });
-  await incrementStat(env, statKey("all", "all", lang, boardSize, type), { scope: "all", day: "all", lang, boardSize, type });
+  await incrementStat(env, statKey("day", day, lang, boardSize, mode, type), { scope: "day", day, lang, boardSize, mode, type });
+  await incrementStat(env, statKey("all", "all", lang, boardSize, mode, type), { scope: "all", day: "all", lang, boardSize, mode, type });
   return json({ ok: true });
 }
 
@@ -168,7 +171,7 @@ async function listStats(request, url, env) {
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  items.sort((a, b) => `${a.lang}:${a.boardSize}:${a.type}`.localeCompare(`${b.lang}:${b.boardSize}:${b.type}`));
+  items.sort((a, b) => `${a.lang}:${a.boardSize}:${a.mode || "classic"}:${a.type}`.localeCompare(`${b.lang}:${b.boardSize}:${b.mode || "classic"}:${b.type}`));
   return json({ scope, day, items });
 }
 
@@ -238,6 +241,10 @@ function normalizeLang(value) {
   return ["ko", "en", "ja"].includes(lang) ? lang : "ko";
 }
 
+function normalizeMode(value) {
+  return String(value || "classic").toLowerCase() === "snake" ? "snake" : "classic";
+}
+
 function normalizeWord(word, lang = "ko") {
   const text = String(word || "").trim();
   if (lang === "en") return text.toUpperCase();
@@ -254,12 +261,14 @@ function wordKey(word, lang = "ko") {
   return lang === "ko" ? `word:${word}` : `word:${lang}:${word}`;
 }
 
-function scorePrefix(boardSize, lang = "ko") {
+function scorePrefix(boardSize, lang = "ko", mode = "classic") {
+  if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:`;
   return lang === "ko" ? `score:${boardSize}:` : `score:${lang}:${boardSize}:`;
 }
 
-function scoreKey(boardSize, rankScore, id, lang = "ko") {
+function scoreKey(boardSize, rankScore, id, lang = "ko", mode = "classic") {
   const stamp = Date.now();
+  if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   return lang === "ko"
     ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
     : `score:${lang}:${boardSize}:${rankScore}:${stamp}:${id}`;
@@ -273,8 +282,8 @@ function normalizeEventType(type, finishType = "") {
   return "";
 }
 
-function statKey(scope, day, lang, boardSize, type) {
-  return `stats:${scope}:${day}:${lang}:${boardSize}:${type}`;
+function statKey(scope, day, lang, boardSize, mode, type) {
+  return `stats:${scope}:${day}:${lang}:${boardSize}:${mode}:${type}`;
 }
 
 function clampInteger(value, min, max) {

@@ -419,6 +419,26 @@
       box-shadow: none;
     }
 
+    .cell.apple-cell::before {
+      content: "";
+      position: absolute;
+      right: 8%;
+      bottom: 8%;
+      z-index: 5;
+      width: 22%;
+      height: 22%;
+      border-radius: 999px;
+      background: var(--accent-2);
+      border: 2px solid #fffdf8;
+      box-shadow: 0 1px 4px rgba(32, 35, 39, 0.22);
+      pointer-events: none;
+    }
+
+    .cell.apple-collected::before {
+      background: var(--muted);
+      opacity: 0.45;
+    }
+
     .cell.exit-ghost.initial-law-cell {
       opacity: 0.46;
     }
@@ -826,18 +846,27 @@
         </ul>
 
       <div class="panel controls">
-        <label class="field">
-          盤面
-          <select id="sizeSelect">
-            <option value="6">6 x 6</option>
-            <option value="7">7 x 7</option>
-            <option value="8" selected>8 x 8</option>
-            <option value="9">9 x 9</option>
-            <option value="10">10 x 10</option>
-            <option value="11">11 x 11</option>
-            <option value="12">12 x 12</option>
-          </select>
-        </label>
+        <div class="settings-row">
+          <label class="field">
+            盤面
+            <select id="sizeSelect">
+              <option value="6">6 x 6</option>
+              <option value="7">7 x 7</option>
+              <option value="8" selected>8 x 8</option>
+              <option value="9">9 x 9</option>
+              <option value="10">10 x 10</option>
+              <option value="11">11 x 11</option>
+              <option value="12">12 x 12</option>
+            </select>
+          </label>
+          <label class="field">
+            モード
+            <select id="modeSelect">
+              <option value="classic" selected>通常</option>
+              <option value="snake">スネーク</option>
+            </select>
+          </label>
+        </div>
         <div class="action-row">
           <button id="startBtn" class="button primary" type="button">開始</button>
           <button id="introRankingBtn" class="button" type="button">ランキング</button>
@@ -932,12 +961,14 @@
   <script src="../public/analytics-config.js"></script>
   <script>
     const DEFAULT_SIZE = 8;
+    const DEFAULT_MODE = "classic";
     const GAME_LANG = "ja";
     const SUGGEST_API = String(window.WORDSNAKE_SUGGEST_API || "").replace(/\/+$/, "");
     const GITHUB_ISSUE_URL = "https://github.com/magentmagent/wordsnake/issues/new";
     const START_PARAMS = new URLSearchParams(window.location.search);
     let returnToRootOnExit = false;
     let boardSize = DEFAULT_SIZE;
+    let gameMode = DEFAULT_MODE;
     const DIRECTIONS = {
       up: { x: 0, y: -1, label: "위" },
       down: { x: 0, y: 1, label: "아래" },
@@ -968,6 +999,76 @@
 
     function filledCount(board) {
       return board.flat().filter(Boolean).length;
+    }
+
+    function normalizeMode(value) {
+      return value === "snake" ? "snake" : "classic";
+    }
+
+    function modeLabel(mode = gameMode) {
+      return normalizeMode(mode) === "snake" ? "スネーク" : "通常";
+    }
+
+    function appleCountForSize(size) {
+      return Math.max(2, Math.floor((size * size) / 12));
+    }
+
+    function isNearApple(apples, x, y) {
+      return apples.some(apple => Math.abs(apple.x - x) <= 1 && Math.abs(apple.y - y) <= 1);
+    }
+
+    function availableAppleLetters() {
+      const letters = new Set();
+      for (const word of dictionary.wordSet) {
+        for (const letter of Array.from(word)) {
+          if (letter && isValidWordShape(letter + letter)) letters.add(letter);
+        }
+        if (letters.size >= 160) break;
+      }
+      if (!letters.size) {
+        for (const word of FALLBACK_WORDS) {
+          for (const letter of Array.from(word)) {
+            if (letter && isValidWordShape(letter + letter)) letters.add(letter);
+          }
+        }
+      }
+      return [...letters];
+    }
+
+    function randomItem(items) {
+      return items[Math.floor(Math.random() * items.length)];
+    }
+
+    function generateApples(size, mode) {
+      if (normalizeMode(mode) !== "snake") return [];
+      const letters = availableAppleLetters();
+      if (!letters.length) return [];
+      const target = appleCountForSize(size);
+      const apples = [];
+      const attempts = size * size * 8;
+      for (let i = 0; i < attempts && apples.length < target; i += 1) {
+        const x = Math.floor(Math.random() * size);
+        const y = Math.floor(Math.random() * size);
+        if (isNearApple(apples, x, y)) continue;
+        apples.push({ x, y, letter: randomItem(letters) });
+      }
+      return apples;
+    }
+
+    function boardWithApples(size, mode) {
+      const board = makeEmptyBoard(size);
+      for (const apple of generateApples(size, mode)) {
+        board[apple.y][apple.x] = apple.letter;
+      }
+      return board;
+    }
+
+    function appleKey(cell) {
+      return `${cell.x},${cell.y}`;
+    }
+
+    function cloneApples(apples) {
+      return (apples || []).map(apple => ({ ...apple }));
     }
 
     function normalizeWord(word) {
@@ -1125,6 +1226,7 @@
       undoBtn: document.querySelector("#undoBtn"),
       newBtn: document.querySelector("#newBtn"),
       sizeSelect: document.querySelector("#sizeSelect"),
+      modeSelect: document.querySelector("#modeSelect"),
       startBtn: document.querySelector("#startBtn"),
       introScreen: document.querySelector("#introScreen"),
       gameScreen: document.querySelector("#gameScreen"),
@@ -1132,8 +1234,17 @@
     };
 
     function initialState() {
+      const apples = generateApples(boardSize, gameMode);
+      const board = makeEmptyBoard(boardSize);
+      for (const apple of apples) {
+        board[apple.y][apple.x] = apple.letter;
+      }
       return {
-        board: makeEmptyBoard(boardSize),
+        board,
+        gameMode,
+        apples,
+        collectedApples: [],
+        appleCount: 0,
         start: null,
         head: null,
         selectedDir: null,
@@ -1156,6 +1267,10 @@
     function snapshotState() {
       return {
         board: cloneBoard(state.board),
+        gameMode: state.gameMode || DEFAULT_MODE,
+        apples: cloneApples(state.apples),
+        collectedApples: (state.collectedApples || []).slice(),
+        appleCount: Number(state.appleCount || 0),
         start: state.start ? { ...state.start } : null,
         head: state.head ? { ...state.head } : null,
         selectedDir: state.selectedDir,
@@ -1179,6 +1294,10 @@
       state = {
         ...snapshot,
         board: cloneBoard(snapshot.board),
+        gameMode: snapshot.gameMode || DEFAULT_MODE,
+        apples: cloneApples(snapshot.apples),
+        collectedApples: (snapshot.collectedApples || []).slice(),
+        appleCount: Number(snapshot.appleCount || 0),
         start: snapshot.start ? { ...snapshot.start } : null,
         head: snapshot.head ? { ...snapshot.head } : null,
         usedWords: (snapshot.usedWords || []).slice(),
@@ -1269,6 +1388,35 @@
       return { gained, wordBonus, crossBonus, crossingCount: crossingCells.length };
     }
 
+    function appleMap(gameState = state) {
+      const map = new Map();
+      for (const apple of gameState.apples || []) {
+        map.set(appleKey(apple), apple);
+      }
+      return map;
+    }
+
+    function collectApplesForPath(gameState, path) {
+      if (normalizeMode(gameState.gameMode) !== "snake") {
+        return { apples: [], bonus: 0 };
+      }
+      const apples = appleMap(gameState);
+      const alreadyCollected = new Set(gameState.collectedApples || []);
+      const seenThisPath = new Set();
+      const collected = [];
+      let nextCount = Number(gameState.appleCount || 0);
+      let bonus = 0;
+      for (const cell of path) {
+        const key = appleKey(cell);
+        if (!apples.has(key) || alreadyCollected.has(key) || seenThisPath.has(key)) continue;
+        seenThisPath.add(key);
+        nextCount += 1;
+        bonus += nextCount * 10;
+        collected.push({ ...apples.get(key), key, order: nextCount, bonus: nextCount * 10 });
+      }
+      return { apples: collected, bonus };
+    }
+
     function validatePlacement(board, gameState, rawWord, dir) {
       const input = normalizeWord(rawWord);
       const delta = DIRECTIONS[dir];
@@ -1326,7 +1474,11 @@
       const newCells = path.filter(({ x, y }) => !board[y][x]);
       const end = path[path.length - 1];
       const score = scorePlacement(board, path, newCells, word, firstTurn);
-      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y }, initialLaw, score };
+      const appleScore = collectApplesForPath(gameState, path);
+      score.appleBonus = appleScore.bonus;
+      score.appleCount = appleScore.apples.length;
+      score.gained += appleScore.bonus;
+      return { ok: true, word, path, newCells, end: { x: end.x, y: end.y }, initialLaw, score, appleScore };
     }
 
     function applyPlacement(board, placement) {
@@ -1418,6 +1570,10 @@
       state.selectedDir = null;
       state.turn += 1;
       state.score += result.score.gained;
+      if (result.appleScore.apples.length) {
+        state.collectedApples.push(...result.appleScore.apples.map(apple => apple.key));
+        state.appleCount += result.appleScore.apples.length;
+      }
       state.usedWords.push(result.word);
       state.snakeTrail.push(...routeCellsForPlacement(result, state.turn === 1));
       state.log.unshift({
@@ -1439,6 +1595,7 @@
       const ruleText = result.initialLaw ? `${result.initialLaw.from}/${result.initialLaw.to} 두음법칙 적용. ` : "";
       const scoreParts = [`+${result.score.gained}点`, `新しいマス +${result.newCells.length}`, `単語 +${result.score.wordBonus}`];
       if (result.score.crossBonus) scoreParts.push(`交差 +${result.score.crossBonus}`);
+      if (result.score.appleBonus) scoreParts.push(`りんご +${result.score.appleBonus}`);
       setMessage(done ? "盤面クリア！スネークが外へ進みます。" : `${ruleText}${result.word} を置きました。${scoreParts.join(" · ")}`, "ok");
       els.boardInput.value = "";
       lastMissingWord = "";
@@ -1499,15 +1656,17 @@
       focusBoardInput();
     }
 
-    function startGame(sizeOverride = null) {
+    function startGame(sizeOverride = null, modeOverride = null) {
       boardSize = Number(sizeOverride || els.sizeSelect.value) || DEFAULT_SIZE;
+      gameMode = normalizeMode(modeOverride || els.modeSelect.value);
       els.sizeSelect.value = String(boardSize);
+      els.modeSelect.value = gameMode;
       els.introScreen.classList.add("hidden");
       els.gameScreen.classList.remove("hidden");
       els.introRankingPanel.classList.add("hidden");
       newGame();
       setMessage("端のマスを押して開始位置を選んでください。", "ok");
-      trackGameEvent("game_start", { boardSize });
+      trackGameEvent("game_start", { boardSize, mode: gameMode });
       render();
     }
 
@@ -1518,7 +1677,7 @@
       returnToRootOnExit = window.location.protocol !== "file:";
       const requestedSize = Number(START_PARAMS.get("size")) || DEFAULT_SIZE;
       const safeSize = Math.min(12, Math.max(6, requestedSize));
-      startGame(safeSize);
+      startGame(safeSize, START_PARAMS.get("mode"));
       if (window.location.search) window.history.replaceState({}, "", window.location.pathname);
       return true;
     }
@@ -1801,6 +1960,8 @@
       els.board.style.setProperty("--cell-font-size", `calc(${normalFactor}cqw / ${size})`);
       els.board.style.setProperty("--initial-law-font-size", `calc(${splitFactor}cqw / ${size})`);
       els.board.appendChild(makePathOverlay(size, state.snakeTrail));
+      const apples = appleMap(state);
+      const collectedApples = new Set(state.collectedApples || []);
       for (let y = 0; y < size; y += 1) {
         for (let x = 0; x < size; x += 1) {
           const button = document.createElement("button");
@@ -1822,6 +1983,10 @@
           button.setAttribute("aria-label", `${x + 1}열 ${y + 1}행 ${label}`);
           if (!exiting && isEdge(state.board, x, y)) button.classList.add("edge");
           if (cellLetter) button.classList.add("filled");
+          if (apples.has(key)) {
+            button.classList.add("apple-cell");
+            if (collectedApples.has(key)) button.classList.add("apple-collected");
+          }
           if (isExitGhost) button.classList.add("exit-ghost");
           if (preview.has(key)) button.classList.add("preview-cell");
           if (conflicts.has(key)) button.classList.add("conflict-cell");
@@ -1935,6 +2100,7 @@
         filled,
         total,
         boardSize: state.board.length,
+        mode: normalizeMode(state.gameMode),
         turns: state.turn,
         finishType: state.finishType || "surrender",
         lang: GAME_LANG
@@ -1963,8 +2129,8 @@
       els.resultPanel.classList.remove("hidden");
       els.resultTitle.textContent = type === "clear" ? "クリア結果" : "降参結果";
       setScoreSubmitStatus(SUGGEST_API ? "得点を登録できます。" : "ランキングサーバーが未設定です。", !SUGGEST_API);
-      loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
-      trackGameEvent("game_finish", { finishType: type, score: state.score, filled: filledCount(state.board), turns: state.turn });
+      loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId, state.gameMode);
+      trackGameEvent("game_finish", { finishType: type, score: state.score, filled: filledCount(state.board), turns: state.turn, mode: state.gameMode });
     }
 
     function renderResultPanel() {
@@ -1981,7 +2147,7 @@
       els.resultScore.textContent = `${result.score.toLocaleString("ja-JP")}点`;
       els.resultFilled.textContent = `${result.filled} / ${result.total}`;
       els.resultTurns.textContent = `${result.turns}`;
-      els.leaderboardScope.textContent = `${result.boardSize} x ${result.boardSize}`;
+      els.leaderboardScope.textContent = `${result.boardSize} x ${result.boardSize} · ${modeLabel(result.mode)}`;
       els.placeBtn.disabled = true;
       els.undoBtn.disabled = true;
       els.newBtn.textContent = "ホーム";
@@ -2005,7 +2171,8 @@
     function shareSummary() {
       const result = resultSnapshot();
       const finish = result.finishType === "clear" ? "クリア" : "降参";
-      return `${result.boardSize}x${result.boardSize} 日本語 ${finish} ${result.score.toLocaleString("ja-JP")}点`;
+      const mode = result.mode === "snake" ? " スネーク" : "";
+      return `${result.boardSize}x${result.boardSize}${mode} 日本語 ${finish} ${result.score.toLocaleString("ja-JP")}点`;
     }
 
     function shareText() {
@@ -2283,15 +2450,16 @@
       listEl.appendChild(row);
     }
 
-    async function loadLeaderboard(size, listEl, setStatus, ownId = "") {
+    async function loadLeaderboard(size, listEl, setStatus, ownId = "", mode = gameMode) {
       const boardSizeForRank = Number(size) || DEFAULT_SIZE;
+      const modeForRank = normalizeMode(mode);
       if (!SUGGEST_API) {
         renderLeaderboard(listEl, []);
         if (setStatus) setStatus("ランキングサーバーが未設定です。", true);
         return;
       }
       try {
-        const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10", lang: GAME_LANG });
+        const params = new URLSearchParams({ boardSize: String(boardSizeForRank), limit: "10", lang: GAME_LANG, mode: modeForRank });
         if (ownId) params.set("id", ownId);
         const response = await fetch(`${SUGGEST_API}/scores?${params.toString()}`, { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
@@ -2312,12 +2480,17 @@
       return Number(els.sizeSelect.value) || DEFAULT_SIZE;
     }
 
+    function selectedIntroMode() {
+      return normalizeMode(els.modeSelect.value);
+    }
+
     function trackGameEvent(type, detail = {}) {
       if (!SUGGEST_API) return;
       const payload = {
         type,
         lang: GAME_LANG,
         boardSize: Number(state.board && state.board.length) || boardSize || DEFAULT_SIZE,
+        mode: normalizeMode(detail.mode || state.gameMode || gameMode),
         ...detail
       };
       const body = JSON.stringify(payload);
@@ -2339,10 +2512,11 @@
 
     async function showIntroRanking() {
       const size = selectedIntroBoardSize();
-      els.introLeaderboardScope.textContent = `${size} x ${size}`;
+      const mode = selectedIntroMode();
+      els.introLeaderboardScope.textContent = `${size} x ${size} · ${modeLabel(mode)}`;
       els.introRankingPanel.classList.remove("hidden");
       setIntroRankingStatus("ランキングを読み込み中...");
-      await loadLeaderboard(size, els.introLeaderboardList, setIntroRankingStatus);
+      await loadLeaderboard(size, els.introLeaderboardList, setIntroRankingStatus, "", mode);
     }
 
     function toggleIntroRanking() {
@@ -2377,7 +2551,7 @@
         state.scoreUploaded = true;
         state.scoreId = data.item && data.item.id ? data.item.id : "";
         setScoreSubmitStatus("得点を登録しました。");
-        await loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId);
+        await loadLeaderboard(state.board.length, els.leaderboardList, setScoreSubmitStatus, state.scoreId, state.gameMode);
       } catch (error) {
         setScoreSubmitStatus(error.message || "得点の登録に失敗しました。", true);
       } finally {
@@ -2475,6 +2649,9 @@
     els.startBtn.addEventListener("click", startGame);
     els.introRankingBtn.addEventListener("click", toggleIntroRanking);
     els.sizeSelect.addEventListener("change", () => {
+      if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
+    });
+    els.modeSelect.addEventListener("change", () => {
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.placeBtn.addEventListener("click", placeCurrentWord);
