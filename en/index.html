@@ -1754,8 +1754,11 @@
     }
 
     function render() {
+      const controlsLocked = Boolean(clearAnimation || state.finished);
       els.message.textContent = state.message;
       els.message.classList.toggle("error", state.messageType === "error");
+      els.boardInput.disabled = controlsLocked;
+      els.placeBtn.classList.toggle("hidden", controlsLocked);
       renderSuggestionPanel();
       renderResultPanel();
       renderBoard();
@@ -1796,7 +1799,7 @@
 
     function renderSuggestionPanel() {
       const word = lastMissingWord;
-      const visible = Boolean(word && isValidWordShape(word) && !dictionary.wordSet.has(word));
+      const visible = Boolean(!clearAnimation && !state.finished && word && isValidWordShape(word) && !dictionary.wordSet.has(word));
       els.suggestPanel.classList.toggle("hidden", !visible);
       if (!visible) {
         els.suggestWord.textContent = "";
