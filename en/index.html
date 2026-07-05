@@ -1206,7 +1206,7 @@
       const word = candidates.find(candidate => dictionary.wordSet.has(candidate)) || candidates[0] || input;
       if (word.length < 2) return { ok: false, message: "One-letter words cannot be used." };
       if (isBlockedWord(word)) {
-        return { ok: false, code: "blocked-word", word, message: "This looks like an abbreviation, so it cannot be used." };
+        return { ok: false, code: "blocked-word", word, message: "Inflected forms and abbreviations cannot be used." };
       }
       if (!dictionary.wordSet.has(word)) {
         return { ok: false, code: "missing-word", word, message: "This word is not in the dictionary yet." };
@@ -1790,7 +1790,7 @@
         const response = await fetch("../public/words-en-blocked.txt", { cache: "no-store" });
         if (response.ok) loadBlockedDictionaryFromText(await response.text());
       } catch {
-        // Missing blocked-word data only degrades the explanation for rejected words.
+        // 금지 단어 사전은 실패해도 게임 자체는 계속 진행할 수 있습니다.
       }
     }
 
@@ -2107,12 +2107,12 @@
     };
 
     initAds();
-    loadBlockedDictionary();
     const startedFromUrl = startFromUrlParams();
     if (!startedFromUrl) {
       els.introScreen.classList.remove("hidden");
       render();
     }
+    loadBlockedDictionary();
     loadDefaultDictionary();
   </script>
 </body>

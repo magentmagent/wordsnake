@@ -50,7 +50,7 @@ python tools/build_words_data_js.py --words public/words.txt --out public/words-
 영어 사전은 Wiktextract JSONL 덤프에서 대문자 A-Z 2글자 이상 단어를 추출해 `public/words-en.txt`와 `public/words-en-data.js`로 둡니다.
 
 ```powershell
-python .\tools\build_wiktextract_english_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-en.txt --blocked-out .\public\words-en-blocked.txt --include-forms
+python .\tools\build_wiktextract_english_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-en.txt --blocked-out .\public\words-en-blocked.txt
 python .\tools\build_words_data_js.py --words .\public\words-en.txt --out .\public\words-en-data.js --global-name window.WORDSNAKE_WORDS_EN
 python .\tools\build_words_data_js.py --words .\public\words-en-blocked.txt --out .\public\words-en-blocked-data.js --global-name window.WORDSNAKE_BLOCKED_WORDS_EN
 python .\tools\build_english_page.py
@@ -103,7 +103,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\build_words_from_stdict_xls.ps1
 표준국어대사전에 없는 생활 어휘와 복합어를 보강하려면 Kaikki의 Korean JSONL 데이터를 병합합니다.
 
 ```bash
-python tools/merge_kaikki_korean_words.py --words public/words.txt --include-forms --verbose
+python tools/merge_kaikki_korean_words.py --words public/words.txt --verbose
 ```
 
 Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktionary와 Kaikki의 라이선스와 출처 표기 조건을 확인하세요.
@@ -113,8 +113,10 @@ Kaikki 데이터는 Wiktionary/Wiktextract 기반입니다. 배포 전에 Wiktio
 우리말샘 전체 XML 내려받기 폴더가 있으면 다음 명령으로 기존 `public/words.txt`에 병합합니다.
 
 ```powershell
-python .\tools\merge_urimalsaem_words.py --words .\public\words.txt --input-dir ".\전체 내려받기_우리말샘_xml_20260602" --include-conjugations --verbose
+python .\tools\merge_urimalsaem_words.py --words .\public\words.txt --input-dir ".\전체 내려받기_우리말샘_xml_20260602" --verbose
 python .\tools\build_words_data_js.py --words .\public\words.txt --out .\public\words-data.js
+python .\tools\build_korean_blocked_words.py --previous .\public\words.previous-broad.txt --current .\public\words.txt --out .\public\words-blocked.txt
+python .\tools\build_words_data_js.py --words .\public\words-blocked.txt --out .\public\words-blocked-data.js --global-name window.WORDSNAKE_BLOCKED_WORDS
 ```
 
 추출 기준은 순수 한글 2글자 이상이며, 접사/조사/어미/옛말 항목은 제외합니다.

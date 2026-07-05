@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 WORD_RE = re.compile(r"^[A-Z]{2,}$")
-SOURCE_WORD_RE = re.compile(r"^[a-z]{2,}$")
+SOURCE_WORD_RE = re.compile(r"^[A-Za-z]{2,}$")
 BLOCKED_SOURCE_RE = re.compile(r"^[A-Za-z]{2,}$")
 MARKER_TOKEN_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?")
 TWO_LETTER_ALLOWLIST = {
@@ -47,6 +47,9 @@ ABBREVIATION_MARKERS = {
     "initialism",
     "short-form",
 }
+INFLECTION_MARKERS = {
+    "form-of",
+}
 EXCLUDED_MARKERS = {
     *ABBREVIATION_MARKERS,
     "alt-of",
@@ -68,6 +71,7 @@ DEFAULT_POS = {
     "conj",
     "det",
     "intj",
+    "name",
     "noun",
     "num",
     "prep",
@@ -135,6 +139,10 @@ def has_abbreviation_marker(item: dict) -> bool:
     return has_marker(marker_set(item), ABBREVIATION_MARKERS)
 
 
+def has_inflection_marker(item: dict) -> bool:
+    return has_marker(marker_set(item), INFLECTION_MARKERS)
+
+
 def has_playable_sense(item: dict) -> bool:
     page_markers = marker_set_from_keys(item, ("tags", "topics"))
     if has_marker(page_markers, EXCLUDED_MARKERS):
@@ -182,6 +190,26 @@ def add_blocked_word(words: set[str], value: object) -> None:
         words.add(word)
 
 
+def likely_lemma_for_inflection(word: str, words: set[str]) -> str:
+    candidates: list[str] = []
+    if word.endswith("ING") and len(word) > 5:
+        stem = word[:-3]
+        candidates.extend([stem, stem + "E"])
+        if len(stem) >= 2 and stem[-1] == stem[-2]:
+            candidates.append(stem[:-1])
+    if word.endswith("ED") and len(word) > 4:
+        stem = word[:-2]
+        candidates.extend([stem, stem + "E"])
+        if len(stem) >= 2 and stem[-1] == stem[-2]:
+            candidates.append(stem[:-1])
+    if word.endswith("ES") and len(word) > 4:
+        stem = word[:-2]
+        candidates.extend([stem, stem + "E"])
+    if word.endswith("S") and len(word) > 3 and not word.endswith("SS"):
+        candidates.append(word[:-1])
+    return next((candidate for candidate in candidates if candidate in words), "")
+
+
 def main() -> int:
     args = parse_args()
     source = Path(args.source)
@@ -190,6 +218,7 @@ def main() -> int:
     allowed_pos = {item.strip() for item in args.pos.split(",") if item.strip()}
     words: set[str] = set()
     blocked_words: set[str] = set()
+    inflected_words: set[str] = set()
     lines = 0
     english_entries = 0
     blocked_entries = 0
@@ -205,13 +234,19 @@ def main() -> int:
                 continue
             if item.get("lang_code") != "en":
                 continue
-            if allowed_pos and item.get("pos") not in allowed_pos:
+            pos = item.get("pos")
+            if allowed_pos and pos not in allowed_pos:
                 continue
             is_abbreviation = has_abbreviation_marker(item)
+            is_inflection = has_inflection_marker(item)
             is_playable = has_playable_sense(item)
             if is_abbreviation or not is_playable:
                 blocked_entries += 1
                 add_blocked_word(blocked_words, item.get("word"))
+            if is_inflection:
+                word = normalized_blocked_word(item.get("word"))
+                if word:
+                    inflected_words.add(word)
             if not is_playable:
                 continue
 
@@ -222,6 +257,10 @@ def main() -> int:
                     add_word(words, form.get("form"))
 
     out.parent.mkdir(parents=True, exist_ok=True)
+    for word in sorted(inflected_words & words):
+        if likely_lemma_for_inflection(word, words):
+            words.remove(word)
+            blocked_words.add(word)
     blocked_words.difference_update(words)
     out.write_text("\n".join(sorted(words)) + "\n", encoding="utf-8")
     blocked_out.parent.mkdir(parents=True, exist_ok=True)

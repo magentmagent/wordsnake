@@ -882,6 +882,7 @@
   </div>
 
   <script src="public/words-data.js"></script>
+  <script src="public/words-blocked-data.js"></script>
   <script src="public/suggest-config.js"></script>
   <script src="public/ad-config.js"></script>
   <script>
@@ -1047,6 +1048,7 @@
     }
 
     let dictionary = buildDictionary(FALLBACK_WORDS);
+    let blockedDictionary = buildDictionary([]);
     let state = initialState();
     let undoStack = [];
     let newCellsForAnimation = [];
@@ -1245,6 +1247,9 @@
       const candidates = wordCandidatesForInput(input, board, gameState);
       const word = candidates.find(candidate => dictionary.wordSet.has(candidate)) || candidates[0] || input;
       if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };
+      if (isBlockedWord(word)) {
+        return { ok: false, code: "blocked-word", word, message: "명사로 등재된 단어만 사용할 수 있습니다." };
+      }
       if (!dictionary.wordSet.has(word)) {
         return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };
       }
@@ -1812,6 +1817,27 @@
       }
     }
 
+    function loadBlockedDictionaryFromText(text) {
+      blockedDictionary = buildDictionary(text.split(/\r?\n/));
+    }
+
+    function isBlockedWord(word) {
+      return blockedDictionary.wordSet.has(word) && !dictionary.wordSet.has(word);
+    }
+
+    async function loadBlockedDictionary() {
+      if (typeof window.WORDSNAKE_BLOCKED_WORDS === "string" && window.WORDSNAKE_BLOCKED_WORDS.trim()) {
+        loadBlockedDictionaryFromText(window.WORDSNAKE_BLOCKED_WORDS);
+        return;
+      }
+      try {
+        const response = await fetch("public/words-blocked.txt", { cache: "no-store" });
+        if (response.ok) loadBlockedDictionaryFromText(await response.text());
+      } catch {
+        // 금지 단어 사전은 실패해도 게임 자체는 계속 진행할 수 있습니다.
+      }
+    }
+
     function renderSuggestionPanel() {
       const word = lastMissingWord;
       const visible = Boolean(word && isValidWordShape(word) && !dictionary.wordSet.has(word));
@@ -2128,6 +2154,7 @@
       els.introScreen.classList.remove("hidden");
       render();
     }
+    loadBlockedDictionary();
     loadDefaultDictionary();
   </script>
 </body>
