@@ -4,11 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta http-equiv="refresh" content="0; url=https://magentmagent.github.io/">
+  <meta http-equiv="refresh" content="0; url=https://magentmagent.github.io/?lang=en">
   <link rel="canonical" href="https://magentmagent.github.io/">
   <title>word chain snake</title>
   <script>
-    location.replace("https://magentmagent.github.io/" + location.search + location.hash);
+    const params = new URLSearchParams(location.search);
+    params.set("lang", "en");
+    location.replace("https://magentmagent.github.io/?" + params.toString() + location.hash);
   </script>
 </head>
 <body>
