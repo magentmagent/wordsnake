@@ -72,7 +72,7 @@ async function createSuggestion(request, env) {
 async function listApprovedWords(url, env) {
   const lang = normalizeLang(url.searchParams.get("lang"));
   const records = await listRecords(env, "approved", lang);
-  const locale = lang === "en" ? "en" : "ko";
+  const locale = lang === "en" ? "en" : lang === "ja" ? "ja" : "ko";
   const words = records.map(item => item.word).sort((a, b) => a.localeCompare(b, locale));
   return new Response(words.join("\n"), { headers: TEXT_HEADERS });
 }
@@ -191,31 +191,35 @@ function requireAdmin(request, env) {
 }
 
 function normalizeLang(value) {
-  return String(value || "ko").toLowerCase() === "en" ? "en" : "ko";
+  const lang = String(value || "ko").toLowerCase();
+  return ["ko", "en", "ja"].includes(lang) ? lang : "ko";
 }
 
 function normalizeWord(word, lang = "ko") {
   const text = String(word || "").trim();
-  return lang === "en" ? text.toUpperCase() : text;
+  if (lang === "en") return text.toUpperCase();
+  return text;
 }
 
 function isValidWord(word, lang = "ko") {
-  return lang === "en" ? /^[A-Z]{2,}$/.test(word) : /^[가-힣]{2,}$/.test(word);
+  if (lang === "en") return /^[A-Z]{2,}$/.test(word);
+  if (lang === "ja") return /^[ぁ-ゖ]{2,}$/.test(word);
+  return /^[가-힣]{2,}$/.test(word);
 }
 
 function wordKey(word, lang = "ko") {
-  return lang === "en" ? `word:en:${word}` : `word:${word}`;
+  return lang === "ko" ? `word:${word}` : `word:${lang}:${word}`;
 }
 
 function scorePrefix(boardSize, lang = "ko") {
-  return lang === "en" ? `score:en:${boardSize}:` : `score:${boardSize}:`;
+  return lang === "ko" ? `score:${boardSize}:` : `score:${lang}:${boardSize}:`;
 }
 
 function scoreKey(boardSize, rankScore, id, lang = "ko") {
   const stamp = Date.now();
-  return lang === "en"
-    ? `score:en:${boardSize}:${rankScore}:${stamp}:${id}`
-    : `score:${boardSize}:${rankScore}:${stamp}:${id}`;
+  return lang === "ko"
+    ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
+    : `score:${lang}:${boardSize}:${rankScore}:${stamp}:${id}`;
 }
 
 function clampInteger(value, min, max) {
