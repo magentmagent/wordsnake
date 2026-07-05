@@ -42,33 +42,53 @@ def main():
         <ul class="rule-list panel">
           <li>
             <div class="mini-board" aria-hidden="true">
-              <i class="mini-cell start fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell head fill">N</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">E</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">A</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">G</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">L</i><i class="mini-cell"></i>
+              <i class="mini-cell start fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">A</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">G</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">L</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">E</i>
             </div>
             <p><b>Basic Rule</b><span>STONE ends with E. Type AGLE and EAGLE is placed from the head tile.</span></p>
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
-              <i class="mini-cell"></i><i class="mini-cell next">M</i><i class="mini-cell next">O</i><i class="mini-cell next">U</i><i class="mini-cell"></i>
-              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill pass">O</i><i class="mini-cell head fill">N</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">S</i><i class="mini-cell"></i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">E</i><i class="mini-cell"></i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">B</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">L</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill pass">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">O</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">M</i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
-            <p><b>Crossing</b><span>MOUSE can pass through an existing O when the letters match.</span></p>
+            <p><b>Crossing</b><span>BLOOM can pass through the existing O because the letters match.</span></p>
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">L</i><i class="mini-cell"></i>
-              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell head fill">N</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">E</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">W</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">T</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">L</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">E</i>
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
-            <p><b>Turning Back</b><span>You cannot repeat the previous direction, but you may turn back the other way.</span></p>
+            <p><b>Turning Back</b><span>After moving right, do not keep moving right; turn upward with EEL.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill">E</i><i class="mini-cell"></i><i class="mini-cell fill">E</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill">E</i><i class="mini-cell"></i><i class="mini-cell fill">A</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill">L</i><i class="mini-cell"></i><i class="mini-cell fill">G</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">L</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">E</i><i class="mini-cell"></i>
+            </div>
+            <p><b>Scoring</b><span>EAGLE scores more than EEL, and crossings add extra points.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>Forbidden</b><span>Once STONE has been used, STONE cannot be placed again.</span></p>
           </li>
         </ul>
 
