@@ -9,9 +9,11 @@
   <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://magentmagent.github.io/wordsnake/">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="word chain snake">
   <meta name="twitter:description" content="끝말잇기와 스네이크를 결합한 모바일 단어 퍼즐.">
+  <meta name="twitter:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -1983,8 +1985,7 @@
     }
 
     function shareUrl() {
-      const path = GAME_LANG === "ko" ? "/wordsnake/" : `/wordsnake/${GAME_LANG}/`;
-      return `${window.location.origin}${path}`;
+      return `${window.location.origin}/`;
     }
 
     function shareSummary() {

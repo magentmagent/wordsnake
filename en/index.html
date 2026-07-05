@@ -9,9 +9,11 @@
   <meta property="og:description" content="A mobile English word-chain snake puzzle.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://magentmagent.github.io/wordsnake/en/">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="word chain snake">
   <meta name="twitter:description" content="A mobile word-chain puzzle crossed with snake movement.">
+  <meta name="twitter:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -1938,8 +1940,7 @@
     }
 
     function shareUrl() {
-      const path = GAME_LANG === "ko" ? "/wordsnake/" : `/wordsnake/${GAME_LANG}/`;
-      return `${window.location.origin}${path}`;
+      return `${window.location.origin}/`;
     }
 
     function shareSummary() {
