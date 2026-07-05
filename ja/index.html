@@ -1982,6 +1982,177 @@
       trackGameEvent("share_result", { finishType: state.finishType || "surrender", score: state.score, channel });
     }
 
+    function boardImageTitle() {
+      return `Word Chain Snake - ${shareSummary()}`;
+    }
+
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - r, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      ctx.lineTo(x + r, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+      const chars = Array.from(text);
+      let line = "";
+      for (const char of chars) {
+        const next = line + char;
+        if (line && ctx.measureText(next).width > maxWidth) {
+          ctx.fillText(line, x, y);
+          line = char;
+          y += lineHeight;
+        } else {
+          line = next;
+        }
+      }
+      if (line) ctx.fillText(line, x, y);
+      return y + lineHeight;
+    }
+
+    function initialLawMarkForCell(x, y) {
+      return state.initialLawMarks.find(item => item.x === x && item.y === y) || null;
+    }
+
+    function boardImageCanvas() {
+      const result = resultSnapshot();
+      const size = state.board.length;
+      const scale = 3;
+      const tile = 54;
+      const gap = 5;
+      const pad = 34;
+      const boardPx = (tile * size) + (gap * (size - 1));
+      const width = boardPx + (pad * 2);
+      const height = pad + 92 + boardPx + 86;
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = "#f6f3ea";
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "#202327";
+      ctx.font = "900 27px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Word Chain Snake", pad, pad + 28);
+      ctx.fillStyle = "#5f6872";
+      ctx.font = "800 17px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText(shareSummary(), pad, pad + 58);
+
+      const boardX = pad;
+      const boardY = pad + 92;
+      ctx.save();
+      ctx.translate(boardX, boardY);
+
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const px = x * (tile + gap);
+          const py = y * (tile + gap);
+          const letter = state.board[y][x] || "";
+          const mark = initialLawMarkForCell(x, y);
+          ctx.fillStyle = letter ? "#fffdf8" : "#ede4d3";
+          ctx.strokeStyle = "#d8d0c3";
+          ctx.lineWidth = 2;
+          drawRoundedRect(ctx, px, py, tile, tile, 7);
+          ctx.fill();
+          ctx.stroke();
+          if (letter) {
+            ctx.fillStyle = "#202327";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            if (mark) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.moveTo(px, py);
+              ctx.lineTo(px + tile, py);
+              ctx.lineTo(px, py + tile);
+              ctx.closePath();
+              ctx.clip();
+              ctx.font = "900 18px system-ui, -apple-system, Segoe UI, sans-serif";
+              ctx.fillText(mark.from, px + (tile * 0.32), py + (tile * 0.32));
+              ctx.restore();
+              ctx.save();
+              ctx.beginPath();
+              ctx.moveTo(px + tile, py);
+              ctx.lineTo(px + tile, py + tile);
+              ctx.lineTo(px, py + tile);
+              ctx.closePath();
+              ctx.clip();
+              ctx.font = "900 18px system-ui, -apple-system, Segoe UI, sans-serif";
+              ctx.fillText(mark.to, px + (tile * 0.68), py + (tile * 0.68));
+              ctx.restore();
+              ctx.strokeStyle = "#d8d0c3";
+              ctx.beginPath();
+              ctx.moveTo(px + 2, py + tile - 2);
+              ctx.lineTo(px + tile - 2, py + 2);
+              ctx.stroke();
+            } else {
+              ctx.font = `900 ${size >= 11 ? 24 : size >= 9 ? 28 : 31}px system-ui, -apple-system, Segoe UI, sans-serif`;
+              ctx.fillText(letter, px + tile / 2, py + tile / 2);
+            }
+          }
+        }
+      }
+
+      ctx.fillStyle = "#197278";
+      for (let i = 1; i < state.snakeTrail.length; i += 1) {
+        const from = state.snakeTrail[i - 1];
+        const to = state.snakeTrail[i];
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        if (Math.abs(dx) + Math.abs(dy) !== 1) continue;
+        const cx = ((from.x + to.x + 1) / 2) * (tile + gap) - (gap / 2);
+        const cy = ((from.y + to.y + 1) / 2) * (tile + gap) - (gap / 2);
+        const len = 17;
+        const wide = 12;
+        const px = -dy;
+        const py = dx;
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * len * 0.62, cy + dy * len * 0.62);
+        ctx.lineTo(cx - dx * len * 0.45 + px * wide, cy - dy * len * 0.45 + py * wide);
+        ctx.lineTo(cx - dx * len * 0.45 - px * wide, cy - dy * len * 0.45 - py * wide);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.fillStyle = "#202327";
+      ctx.font = "900 20px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText(`${result.filled} / ${result.total}マス · ${result.turns}単語`, pad, boardY + boardPx + 38);
+      ctx.fillStyle = "#5f6872";
+      ctx.font = "800 15px system-ui, -apple-system, Segoe UI, sans-serif";
+      drawWrappedText(ctx, shareUrl(), pad, boardY + boardPx + 66, width - pad * 2, 19);
+      return canvas;
+    }
+
+    function canvasToBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("image")), "image/png");
+      });
+    }
+
+    async function resultImageFile() {
+      const blob = await canvasToBlob(boardImageCanvas());
+      return new File([blob], "word-chain-snake-result.png", { type: "image/png" });
+    }
+
+    async function copyResultImage() {
+      const file = await resultImageFile();
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ [file.type]: file })]);
+        return true;
+      }
+      return false;
+    }
+
     function shareToX() {
       if (!state.finished) return;
       const params = new URLSearchParams({
@@ -1990,7 +2161,9 @@
         hashtags: "WordChainSnake"
       });
       window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener,noreferrer");
-      setShareStatus("Xの共有画面を開きました。");
+      copyResultImage()
+        .then(copied => setShareStatus(copied ? "Xの共有画面を開き、画像をコピーしました。" : "Xの共有画面を開きました。"))
+        .catch(() => setShareStatus("Xの共有画面を開きました。"));
       trackShare("x");
     }
 
@@ -1998,7 +2171,11 @@
       if (!state.finished) return;
       const text = shareText();
       try {
-        if (navigator.share) {
+        const file = await resultImageFile();
+        if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+          await navigator.share({ title: "Word Chain Snake", text, url: shareUrl(), files: [file] });
+          setShareStatus("共有しました。");
+        } else if (navigator.share) {
           await navigator.share({ title: "Word Chain Snake", text, url: shareUrl() });
           setShareStatus("共有しました。");
         } else {
@@ -2015,8 +2192,13 @@
     async function copyResult() {
       if (!state.finished) return;
       try {
-        await navigator.clipboard.writeText(shareText());
-        setShareStatus("結果をクリップボードにコピーしました。");
+        const copiedImage = await copyResultImage();
+        if (copiedImage) {
+          setShareStatus("結果画像をクリップボードにコピーしました。");
+        } else {
+          await navigator.clipboard.writeText(shareText());
+          setShareStatus("結果をクリップボードにコピーしました。");
+        }
         trackShare("copy");
       } catch {
         setShareStatus("クリップボードにコピーできませんでした。", true);
