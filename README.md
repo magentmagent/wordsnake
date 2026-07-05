@@ -50,12 +50,13 @@ python tools/build_words_data_js.py --words public/words.txt --out public/words-
 영어 사전은 Wiktextract JSONL 덤프에서 대문자 A-Z 2글자 이상 단어를 추출해 `public/words-en.txt`와 `public/words-en-data.js`로 둡니다.
 
 ```powershell
-python .\tools\build_wiktextract_english_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-en.txt --include-forms
+python .\tools\build_wiktextract_english_words.py --source .\raw-wiktextract-data.jsonl.gz --out .\public\words-en.txt --blocked-out .\public\words-en-blocked.txt --include-forms
 python .\tools\build_words_data_js.py --words .\public\words-en.txt --out .\public\words-en-data.js --global-name window.WORDSNAKE_WORDS_EN
+python .\tools\build_words_data_js.py --words .\public\words-en-blocked.txt --out .\public\words-en-blocked-data.js --global-name window.WORDSNAKE_BLOCKED_WORDS_EN
 python .\tools\build_english_page.py
 ```
 
-영어판 제안 단어와 랭킹은 서버에 `lang=en`으로 전송되어 한국어판 데이터와 분리됩니다.
+영어판은 약어/이니셜류 항목을 `public/words-en-blocked.txt`에 따로 두고, 일반 단어로도 인정되는 같은 철자는 허용 사전이 우선합니다. 영어판 제안 단어와 랭킹은 서버에 `lang=en`으로 전송되어 한국어판 데이터와 분리됩니다.
 
 ## 표준국어대사전 API 빌드
 

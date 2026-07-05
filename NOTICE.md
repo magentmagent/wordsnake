@@ -25,7 +25,7 @@ The generated Korean dictionary files in `public/words.txt` and `public/words-da
   - Wiktionary: https://www.wiktionary.org/
   - Wiktextract: https://github.com/tatuylonen/wiktextract
 
-The generated English dictionary files in `public/words-en.txt` and `public/words-en-data.js` are derived from Wiktionary/Wiktextract JSONL data prepared for gameplay.
+The generated English dictionary files in `public/words-en.txt`, `public/words-en-data.js`, `public/words-en-blocked.txt`, and `public/words-en-blocked-data.js` are derived from Wiktionary/Wiktextract JSONL data prepared for gameplay.
 
 Kaikki/Wiktionary-derived data is based on Wiktionary content and is generally distributed under Creative Commons Attribution-ShareAlike terms. Review the relevant current license terms before public redistribution:
 
@@ -43,6 +43,7 @@ Dictionary data has been filtered and transformed for gameplay:
 - Multiple sources were merged and deduplicated.
 - A JavaScript payload, `public/words-data.js`, was generated from `public/words.txt` for file-based browser loading.
 - A JavaScript payload, `public/words-en-data.js`, was generated from `public/words-en.txt` for the separate English version.
+- A blocked-word payload, `public/words-en-blocked-data.js`, was generated from `public/words-en-blocked.txt` so abbreviation-like entries can be rejected with a clearer message.
 
 ## Advertising and Monetization
 

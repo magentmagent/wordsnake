@@ -835,6 +835,7 @@
   </div>
 
   <script src="../public/words-en-data.js"></script>
+  <script src="../public/words-en-blocked-data.js"></script>
   <script src="../public/suggest-config.js"></script>
   <script src="../public/ad-config.js"></script>
   <script>
@@ -961,6 +962,7 @@
     }
 
     let dictionary = buildDictionary(FALLBACK_WORDS);
+    let blockedDictionary = buildDictionary([]);
     let state = initialState();
     let undoStack = [];
     let newCellsForAnimation = [];
@@ -1159,6 +1161,9 @@
       const candidates = wordCandidatesForInput(input, board, gameState);
       const word = candidates.find(candidate => dictionary.wordSet.has(candidate)) || candidates[0] || input;
       if (word.length < 2) return { ok: false, message: "One-letter words cannot be used." };
+      if (isBlockedWord(word)) {
+        return { ok: false, code: "blocked-word", word, message: "This looks like an abbreviation, so it cannot be used." };
+      }
       if (!dictionary.wordSet.has(word)) {
         return { ok: false, code: "missing-word", word, message: "This word is not in the dictionary yet." };
       }
@@ -1634,6 +1639,27 @@
       }
     }
 
+    function loadBlockedDictionaryFromText(text) {
+      blockedDictionary = buildDictionary(text.split(/\r?\n/));
+    }
+
+    function isBlockedWord(word) {
+      return blockedDictionary.wordSet.has(word) && !dictionary.wordSet.has(word);
+    }
+
+    async function loadBlockedDictionary() {
+      if (typeof window.WORDSNAKE_BLOCKED_WORDS_EN === "string" && window.WORDSNAKE_BLOCKED_WORDS_EN.trim()) {
+        loadBlockedDictionaryFromText(window.WORDSNAKE_BLOCKED_WORDS_EN);
+        return;
+      }
+      try {
+        const response = await fetch("../public/words-en-blocked.txt", { cache: "no-store" });
+        if (response.ok) loadBlockedDictionaryFromText(await response.text());
+      } catch {
+        // Missing blocked-word data only degrades the explanation for rejected words.
+      }
+    }
+
     function renderSuggestionPanel() {
       const word = lastMissingWord;
       const visible = Boolean(word && isValidWordShape(word) && !dictionary.wordSet.has(word));
@@ -1947,6 +1973,7 @@
     };
 
     initAds();
+    loadBlockedDictionary();
     const startedFromUrl = startFromUrlParams();
     if (!startedFromUrl) {
       els.introScreen.classList.remove("hidden");

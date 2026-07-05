@@ -24,7 +24,7 @@ def main():
     )
     text = text.replace(
         '<script src="public/words-data.js"></script>',
-        '<script src="../public/words-en-data.js"></script>',
+        '<script src="../public/words-en-data.js"></script>\n  <script src="../public/words-en-blocked-data.js"></script>',
     )
     text = text.replace(
         '<script src="public/suggest-config.js"></script>',
@@ -147,6 +147,7 @@ def main():
         'if (!anchor) return { ok: false, message: "현재 머리 칸이 없습니다." };': 'if (!anchor) return { ok: false, message: "There is no current head tile." };',
         'if (firstTurn && !isEdge(board, anchor.x, anchor.y)) return { ok: false, message: "시작점은 보드 가장자리여야 합니다." };': 'if (firstTurn && !isEdge(board, anchor.x, anchor.y)) return { ok: false, message: "The start tile must be on the board edge." };',
         'if (word.length < 2) return { ok: false, message: "한 글자 표제어는 사용할 수 없습니다." };': 'if (word.length < 2) return { ok: false, message: "One-letter words cannot be used." };',
+        'if (!dictionary.wordSet.has(word)) {\n        return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };\n      }': 'if (isBlockedWord(word)) {\n        return { ok: false, code: "blocked-word", word, message: "This looks like an abbreviation, so it cannot be used." };\n      }\n      if (!dictionary.wordSet.has(word)) {\n        return { ok: false, code: "missing-word", word, message: "This word is not in the dictionary yet." };\n      }',
         'return { ok: false, code: "missing-word", word, message: "현재 사전에 없는 단어입니다." };': 'return { ok: false, code: "missing-word", word, message: "This word is not in the dictionary yet." };',
         'return { ok: false, message: "이미 사용한 단어는 다시 사용할 수 없습니다." };': 'return { ok: false, message: "You cannot reuse a word." };',
         'return { ok: false, message: `현재 머리 글자 \'${allowedStarts.join("/")}\'로 시작하는 단어를 입력하세요.` };': 'return { ok: false, message: `Use a word that starts with ${allowedStarts.join("/")}.` };',
@@ -241,6 +242,47 @@ def main():
     text = text.replace(
         'const response = await fetch("public/words.txt", { cache: "no-store" });',
         'const response = await fetch("../public/words-en.txt", { cache: "no-store" });',
+    )
+    text = text.replace(
+        "    let dictionary = buildDictionary(FALLBACK_WORDS);\n",
+        "    let dictionary = buildDictionary(FALLBACK_WORDS);\n"
+        "    let blockedDictionary = buildDictionary([]);\n",
+    )
+    text = text.replace(
+        "    function addWordsToDictionary(text) {\n"
+        "      for (const raw of text.split(/\\r?\\n/)) {\n"
+        "        const word = normalizeWord(raw);\n"
+        "        if (isValidWordShape(word)) dictionary.wordSet.add(word);\n"
+        "      }\n"
+        "    }\n",
+        "    function addWordsToDictionary(text) {\n"
+        "      for (const raw of text.split(/\\r?\\n/)) {\n"
+        "        const word = normalizeWord(raw);\n"
+        "        if (isValidWordShape(word)) dictionary.wordSet.add(word);\n"
+        "      }\n"
+        "    }\n\n"
+        "    function loadBlockedDictionaryFromText(text) {\n"
+        "      blockedDictionary = buildDictionary(text.split(/\\r?\\n/));\n"
+        "    }\n\n"
+        "    function isBlockedWord(word) {\n"
+        "      return blockedDictionary.wordSet.has(word) && !dictionary.wordSet.has(word);\n"
+        "    }\n\n"
+        "    async function loadBlockedDictionary() {\n"
+        "      if (typeof window.WORDSNAKE_BLOCKED_WORDS_EN === \"string\" && window.WORDSNAKE_BLOCKED_WORDS_EN.trim()) {\n"
+        "        loadBlockedDictionaryFromText(window.WORDSNAKE_BLOCKED_WORDS_EN);\n"
+        "        return;\n"
+        "      }\n"
+        "      try {\n"
+        "        const response = await fetch(\"../public/words-en-blocked.txt\", { cache: \"no-store\" });\n"
+        "        if (response.ok) loadBlockedDictionaryFromText(await response.text());\n"
+        "      } catch {\n"
+        "        // Missing blocked-word data only degrades the explanation for rejected words.\n"
+        "      }\n"
+        "    }\n",
+    )
+    text = text.replace(
+        "    initAds();\n",
+        "    initAds();\n    loadBlockedDictionary();\n",
     )
     text = text.replace(
         "      initialLawReadings,\n      wordCandidatesForInput,",
