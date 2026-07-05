@@ -9,11 +9,16 @@
   <meta property="og:description" content="모바일에서 바로 즐기는 한글 단어 스네이크 퍼즐.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://magentmagent.github.io/wordsnake/">
-  <meta property="og:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
+  <meta property="og:image" content="https://magentmagent.github.io/wordsnake/public/social-card-v2.png">
+  <meta property="og:image:secure_url" content="https://magentmagent.github.io/wordsnake/public/social-card-v2.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Word Chain Snake preview board">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="word chain snake">
   <meta name="twitter:description" content="끝말잇기와 스네이크를 결합한 모바일 단어 퍼즐.">
-  <meta name="twitter:image" content="https://magentmagent.github.io/wordsnake/public/social-card.png">
+  <meta name="twitter:image" content="https://magentmagent.github.io/wordsnake/public/social-card-v2.png">
   <meta name="google-adsense-account" content="ca-pub-9708655184984227">
   <title>word chain snake</title>
   <script>
@@ -337,6 +342,10 @@
       box-shadow: inset 0 0 0 4px var(--accent-2);
     }
 
+    .cell.invalid-cell-flash {
+      animation: invalidCellPulse 520ms ease;
+    }
+
     .cell.initial-law-cell {
       position: relative;
       background: #f6ead7;
@@ -441,6 +450,12 @@
     .message.error {
       background: #fff1ed;
       color: var(--accent-2);
+    }
+
+    @keyframes invalidCellPulse {
+      0% { background: #fff1ed; box-shadow: 0 0 0 0 rgba(196, 69, 54, 0); transform: scale(1); }
+      35% { background: #fecaca; box-shadow: inset 0 0 0 4px #c44536, 0 0 0 4px rgba(196, 69, 54, 0.32); transform: scale(0.965); }
+      100% { background: #fff1ed; box-shadow: 0 0 0 0 rgba(196, 69, 54, 0); transform: scale(1); }
     }
 
     .suggest-panel {
@@ -1102,6 +1117,7 @@
     let clearAnimation = null;
     let clearTimer = null;
     let exitGhostKeys = new Set();
+    let invalidFlashCells = new Set();
     let lastMissingWord = "";
 
     const els = {
@@ -1387,13 +1403,39 @@
       });
     }
 
+    function invalidPlacementKeys() {
+      const { preview, conflicts } = previewPlacement(els.boardInput.value);
+      if (conflicts.size) return [...conflicts];
+      if (preview.size) return [...preview.keys()];
+      const anchor = anchorPos();
+      return anchor ? [`${anchor.x},${anchor.y}`] : [];
+    }
+
+    function flashInvalidPlacement(keys) {
+      invalidFlashCells = new Set(keys);
+      render();
+      window.setTimeout(() => {
+        invalidFlashCells = new Set();
+        render();
+      }, 540);
+    }
+
+    function showPlacementError(result) {
+      lastMissingWord = result.code === "missing-word" ? result.word : "";
+      setMessage(result.message, "error");
+      const keys = invalidPlacementKeys();
+      if (keys.length) {
+        flashInvalidPlacement(keys);
+      } else {
+        render();
+      }
+    }
+
     function placeCurrentWord() {
       if (clearAnimation || state.finished) return;
       const result = validatePlacement(state.board, state, els.boardInput.value, state.selectedDir);
       if (!result.ok) {
-        lastMissingWord = result.code === "missing-word" ? result.word : "";
-        setMessage(result.message, "error");
-        render();
+        showPlacementError(result);
         return;
       }
 
@@ -1812,6 +1854,7 @@
           if (isExitGhost) button.classList.add("exit-ghost");
           if (preview.has(key)) button.classList.add("preview-cell");
           if (conflicts.has(key)) button.classList.add("conflict-cell");
+          if (invalidFlashCells.has(key)) button.classList.add("invalid-cell-flash");
           if (!exiting && state.start && state.start.x === x && state.start.y === y) button.classList.add("start");
           if (!exiting && state.head && state.head.x === x && state.head.y === y) button.classList.add("head");
           const nextDir = exiting ? null : dirFromNextCell(x, y);
