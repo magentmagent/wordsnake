@@ -13,6 +13,7 @@ from pathlib import Path
 WORD_RE = re.compile(r"^[A-Z]{2,}$")
 SOURCE_WORD_RE = re.compile(r"^[a-z]{2,}$")
 BLOCKED_SOURCE_RE = re.compile(r"^[A-Za-z]{2,}$")
+MARKER_TOKEN_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?")
 TWO_LETTER_ALLOWLIST = {
     "AM",
     "AN",
@@ -114,7 +115,12 @@ def marker_set(item: dict) -> set[str]:
 
 
 def has_marker(texts: set[str], markers: set[str]) -> bool:
-    return any(marker in text for text in texts for marker in markers)
+    marker_forms = markers | {f"{marker}s" for marker in markers}
+    for text in texts:
+        for token in MARKER_TOKEN_RE.findall(text):
+            if token in marker_forms:
+                return True
+    return False
 
 
 def has_excluded_marker(item: dict) -> bool:

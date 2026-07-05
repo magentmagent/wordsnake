@@ -214,6 +214,7 @@
     }
 
     .board {
+      position: relative;
       display: grid;
       grid-template-columns: repeat(var(--board-size, 8), minmax(0, 1fr));
       grid-template-rows: repeat(var(--board-size, 8), minmax(0, 1fr));
@@ -231,6 +232,23 @@
       box-shadow: var(--shadow);
     }
 
+    .path-overlay {
+      position: absolute;
+      inset: 3px;
+      z-index: 2;
+      width: calc(100% - 6px);
+      height: calc(100% - 6px);
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .path-triangle {
+      fill: #197278;
+      stroke: #f8f3ea;
+      stroke-width: 0.035;
+      stroke-linejoin: round;
+    }
+
     .board-input {
       position: absolute;
       left: 0;
@@ -243,6 +261,7 @@
     }
 
     .cell {
+      position: relative;
       min-width: 0;
       min-height: 0;
       width: 100%;
@@ -261,6 +280,12 @@
       font-weight: 800;
       touch-action: manipulation;
       transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .cell-letter {
+      position: relative;
+      z-index: 4;
+      pointer-events: none;
     }
 
     .cell.edge:not(.filled) {
@@ -317,7 +342,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      z-index: 2;
+      z-index: 3;
       background: linear-gradient(to bottom right, transparent calc(50% - 1.4px), #795548 50%, transparent calc(50% + 1.4px));
       pointer-events: none;
     }
@@ -341,7 +366,7 @@
 
     .initial-law-letter {
       position: absolute;
-      z-index: 1;
+      z-index: 4;
       display: grid;
       place-items: center;
       width: 46%;
@@ -369,7 +394,6 @@
 
     .cell.clear-cell {
       position: relative;
-      z-index: 3;
       pointer-events: none;
       will-change: transform;
     }
@@ -1546,6 +1570,95 @@
       button.appendChild(to);
     }
 
+    function setCellLetter(button, letter) {
+      button.textContent = "";
+      if (!letter) return;
+      const span = document.createElement("span");
+      span.className = "cell-letter";
+      span.textContent = letter;
+      button.appendChild(span);
+    }
+
+    function segmentLaneOffsets(segments) {
+      const grouped = new Map();
+      for (const segment of segments) {
+        const a = `${segment.from.x},${segment.from.y}`;
+        const b = `${segment.to.x},${segment.to.y}`;
+        const fromFirst = a < b;
+        const key = fromFirst ? `${a}|${b}` : `${b}|${a}`;
+        if (!grouped.has(key)) {
+          const start = fromFirst ? segment.from : segment.to;
+          const end = fromFirst ? segment.to : segment.from;
+          grouped.set(key, {
+            dx: end.x - start.x,
+            dy: end.y - start.y,
+            segments: [],
+          });
+        }
+        grouped.get(key).segments.push(segment);
+      }
+
+      const lanes = new Map();
+      for (const group of grouped.values()) {
+        const count = group.segments.length;
+        group.segments.forEach((segment, index) => {
+          const offset = (index - ((count - 1) / 2)) * 0.28;
+          lanes.set(segment.id, {
+            x: -group.dy * offset,
+            y: group.dx * offset,
+          });
+        });
+      }
+      return lanes;
+    }
+
+    function makePathOverlay(size, trail) {
+      const segments = [];
+      for (let i = 1; i < trail.length; i += 1) {
+        const from = trail[i - 1];
+        const to = trail[i];
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        if (Math.abs(dx) + Math.abs(dy) !== 1) continue;
+        segments.push({ id: `${i}:${from.x},${from.y}:${to.x},${to.y}`, from, to, dx, dy });
+      }
+
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.classList.add("path-overlay");
+      svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+      svg.setAttribute("aria-hidden", "true");
+      if (!segments.length) return svg;
+
+      const lanes = segmentLaneOffsets(segments);
+      for (const segment of segments) {
+        const lane = lanes.get(segment.id) || { x: 0, y: 0 };
+        const cx = (segment.from.x + segment.to.x + 1) / 2 + lane.x;
+        const cy = (segment.from.y + segment.to.y + 1) / 2 + lane.y;
+        const length = 0.28;
+        const width = 0.20;
+        const px = -segment.dy;
+        const py = segment.dx;
+        const tip = {
+          x: cx + (segment.dx * length * 0.55),
+          y: cy + (segment.dy * length * 0.55),
+        };
+        const back = {
+          x: cx - (segment.dx * length * 0.45),
+          y: cy - (segment.dy * length * 0.45),
+        };
+        const points = [
+          `${tip.x.toFixed(3)},${tip.y.toFixed(3)}`,
+          `${(back.x + (px * width / 2)).toFixed(3)},${(back.y + (py * width / 2)).toFixed(3)}`,
+          `${(back.x - (px * width / 2)).toFixed(3)},${(back.y - (py * width / 2)).toFixed(3)}`,
+        ];
+        const triangle = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        triangle.classList.add("path-triangle");
+        triangle.setAttribute("points", points.join(" "));
+        svg.appendChild(triangle);
+      }
+      return svg;
+    }
+
     function clearTransformForStep(step) {
       return `translate(calc(${step.x} * (100% + 3px)), calc(${step.y} * (100% + 3px)))`;
     }
@@ -1580,6 +1693,7 @@
       const splitFactor = Math.max(24, 34 - ((size - 8) * 2.5));
       els.board.style.setProperty("--cell-font-size", `calc(${normalFactor}cqw / ${size})`);
       els.board.style.setProperty("--initial-law-font-size", `calc(${splitFactor}cqw / ${size})`);
+      els.board.appendChild(makePathOverlay(size, state.snakeTrail));
       for (let y = 0; y < size; y += 1) {
         for (let x = 0; x < size; x += 1) {
           const button = document.createElement("button");
@@ -1593,7 +1707,7 @@
           if (initialLawMark) {
             renderInitialLawCell(button, initialLawMark);
           } else {
-            button.textContent = cellLetter || previewLetter || "";
+            setCellLetter(button, cellLetter || previewLetter || "");
           }
           const label = cellLetter || previewLetter || "empty tile";
           button.setAttribute("aria-label", `column ${x + 1}, row ${y + 1}, ${label}`);
