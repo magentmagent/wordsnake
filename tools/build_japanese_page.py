@@ -55,22 +55,22 @@ def main() -> None:
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
-              <i class="mini-cell fill">ね</i><i class="mini-cell fill">こ</i><i class="mini-cell head fill">ま</i><i class="mini-cell"></i><i class="mini-cell"></i>
-              <i class="mini-cell back">こ</i><i class="mini-cell back">ま</i><i class="mini-cell back">ね</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell back">ね</i><i class="mini-cell head fill">こ</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
-            <p><b>戻る</b><span>来た方向へ戻るように単語を置くこともできます。</span></p>
+            <p><b>戻る</b><span>ねこで右へ進んだ後、こねを左へ置いて同じ道を戻れます。</span></p>
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
-              <i class="mini-cell"></i><i class="mini-cell fill">り</i><i class="mini-cell"></i><i class="mini-cell fill">ご</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell fill">ん</i><i class="mini-cell"></i><i class="mini-cell fill">り</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell fill">ご</i><i class="mini-cell"></i><i class="mini-cell fill">ら</i><i class="mini-cell"></i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">お</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">に</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">ぎ</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill pass">り</i><i class="mini-cell fill">ん</i><i class="mini-cell fill">ご</i>
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
-            <p><b>得点</b><span>長い単語ほど高得点。同じ文字で交差すると追加点が入ります。</span></p>
+            <p><b>得点</b><span>おにぎりのような長い単語や、りで交差する配置は追加点になります。</span></p>
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
