@@ -62,13 +62,13 @@ def main():
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">L</i>
-              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell back">E</i>
-              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill">T</i><i class="mini-cell fill">I</i><i class="mini-cell fill">M</i><i class="mini-cell head fill">E</i><i class="mini-cell"></i>
+              <i class="mini-cell back">T</i><i class="mini-cell back">I</i><i class="mini-cell back">M</i><i class="mini-cell back">E</i><i class="mini-cell"></i>
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
-            <p><b>Turning Back</b><span>After moving right, do not keep moving right; turn upward with EEL.</span></p>
+            <p><b>Turning Back</b><span>After moving right with TIME, place EMIT to travel back along the same tiles.</span></p>
           </li>
           <li>
             <div class="mini-board" aria-hidden="true">
