@@ -40,7 +40,7 @@ def main() -> None:
 
     rule_block = """        <p class="intro-copy">ひらがなでしりとりをしながら、スネークのように盤面を進みます。</p>
 
-        <ul class="rule-list panel">
+        <ul id="classicRuleList" class="rule-list panel">
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell start fill">り</i><i class="mini-cell fill">ん</i><i class="mini-cell head fill">ご</i><i class="mini-cell"></i><i class="mini-cell"></i>
@@ -90,6 +90,38 @@ def main() -> None:
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
             <p><b>禁止</b><span>「ん」で終わる単語と、一度使った単語は使えません。</span></p>
+          </li>
+        </ul>
+        <ul id="snakeRuleList" class="rule-list panel hidden">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill apple">り</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">ご</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">ね</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">こ</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple">す</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>りんご配置</b><span>開始時に、単語で使える文字がりんごとして盤面に置かれます。りんご同士は隣り合いません。</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">り</i><i class="mini-cell fill">ん</i><i class="mini-cell fill apple pass">ご</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">り</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">ら</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>通過</b><span>単語の文字がりんごマスと合えば、そのマスを通過してりんごを取れます。</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill apple pass">り</i><i class="mini-cell fill">ん</i><i class="mini-cell"></i><i class="mini-cell fill apple pass">ご</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">り</i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">ね</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple pass">こ</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>りんご得点</b><span>新しく取ったりんごごとにボーナスが増えます。1個目+10、2個目+20、3個目+30です。</span></p>
           </li>
         </ul>
 

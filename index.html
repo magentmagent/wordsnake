@@ -192,6 +192,22 @@
       box-shadow: inset 0 0 0 2px #be185d;
     }
 
+    .mini-cell.apple {
+      position: relative;
+    }
+
+    .mini-cell.apple::after {
+      content: "";
+      position: absolute;
+      right: 12%;
+      bottom: 12%;
+      width: 24%;
+      height: 24%;
+      border-radius: 999px;
+      background: var(--accent-2);
+      border: 1px solid #fffdf8;
+    }
+
     .game-header {
       display: flex;
       align-items: center;
@@ -794,7 +810,7 @@
       </div>
 
       <div class="panel">
-        <ul class="rule-list">
+        <ul id="classicRuleList" class="rule-list">
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
@@ -844,6 +860,38 @@
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
             <p><b>금지 규칙</b><span>한 번 사용한 바다사자는 다시 바다사자로 놓을 수 없습니다.</span></p>
+          </li>
+        </ul>
+        <ul id="snakeRuleList" class="rule-list hidden">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill apple">사</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">과</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">자</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">바</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple">람</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>사과 배치</b><span>시작할 때 단어에 쓸 수 있는 글자들이 맵 곳곳에 사과로 놓입니다. 사과끼리는 서로 붙지 않습니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">바</i><i class="mini-cell fill">다</i><i class="mini-cell fill apple pass">사</i><i class="mini-cell fill">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">가</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">용</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>지나가기</b><span>단어가 사과 칸의 글자와 맞으면 그 칸을 지나갈 수 있고, 그 사과를 획득합니다.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill apple pass">사</i><i class="mini-cell fill">과</i><i class="mini-cell"></i><i class="mini-cell fill apple pass">자</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">전</i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">바</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple pass">람</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>사과 점수</b><span>처음 지나간 사과마다 누적 보너스를 받습니다. 1번째 +10점, 2번째 +20점, 3번째 +30점입니다.</span></p>
           </li>
         </ul>
       </div>
@@ -1259,7 +1307,9 @@
       startBtn: document.querySelector("#startBtn"),
       introScreen: document.querySelector("#introScreen"),
       gameScreen: document.querySelector("#gameScreen"),
-      dictStatus: document.querySelector("#dictStatus")
+      dictStatus: document.querySelector("#dictStatus"),
+      classicRuleList: document.querySelector("#classicRuleList"),
+      snakeRuleList: document.querySelector("#snakeRuleList")
     };
 
     function initialState() {
@@ -1648,6 +1698,12 @@
     function setMessage(message, type) {
       state.message = message;
       state.messageType = type;
+    }
+
+    function updateIntroRules() {
+      const snakeMode = normalizeMode(els.modeSelect.value) === "snake";
+      els.classicRuleList.classList.toggle("hidden", snakeMode);
+      els.snakeRuleList.classList.toggle("hidden", !snakeMode);
     }
 
     function undo() {
@@ -2681,6 +2737,7 @@
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.modeSelect.addEventListener("change", () => {
+      updateIntroRules();
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.placeBtn.addEventListener("click", placeCurrentWord);
@@ -2716,6 +2773,7 @@
     const startedFromUrl = startFromUrlParams();
     if (!startedFromUrl) {
       els.introScreen.classList.remove("hidden");
+      updateIntroRules();
       render();
     }
     loadBlockedDictionary();

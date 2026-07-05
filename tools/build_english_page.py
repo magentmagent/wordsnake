@@ -51,7 +51,7 @@ def main():
     rule_end = '      <div class="panel controls">'
     rule_block = """        <p class="intro-copy">Chain words by their last and first letters while moving like a snake.</p>
 
-        <ul class="rule-list panel">
+        <ul id="classicRuleList" class="rule-list panel">
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell start fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
@@ -101,6 +101,38 @@ def main():
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
             <p><b>Forbidden</b><span>Once STONE has been used, STONE cannot be placed again.</span></p>
+          </li>
+        </ul>
+        <ul id="snakeRuleList" class="rule-list panel hidden">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill apple">A</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">R</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">T</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">E</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple">S</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>Apple Setup</b><span>Random usable letters appear as apples across the board. Apples never touch each other.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill apple pass">O</i><i class="mini-cell fill">N</i><i class="mini-cell fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">A</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">G</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">L</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">E</i>
+            </div>
+            <p><b>Passing Apples</b><span>If your word matches the apple tile's letter, you pass through it and collect that apple.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill apple pass">A</i><i class="mini-cell fill">P</i><i class="mini-cell"></i><i class="mini-cell fill apple pass">E</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">A</i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">R</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple pass">S</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>Apple Bonus</b><span>Each newly collected apple gives a growing bonus: first +10, second +20, third +30.</span></p>
           </li>
         </ul>
 

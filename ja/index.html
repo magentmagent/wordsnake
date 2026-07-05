@@ -192,6 +192,22 @@
       box-shadow: inset 0 0 0 2px #be185d;
     }
 
+    .mini-cell.apple {
+      position: relative;
+    }
+
+    .mini-cell.apple::after {
+      content: "";
+      position: absolute;
+      right: 12%;
+      bottom: 12%;
+      width: 24%;
+      height: 24%;
+      border-radius: 999px;
+      background: var(--accent-2);
+      border: 1px solid #fffdf8;
+    }
+
     .game-header {
       display: flex;
       align-items: center;
@@ -792,7 +808,7 @@
         <h1>word chain snake<br>日本語</h1>
         <p class="intro-copy">ひらがなでしりとりをしながら、スネークのように盤面を進みます。</p>
 
-        <ul class="rule-list panel">
+        <ul id="classicRuleList" class="rule-list panel">
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell start fill">り</i><i class="mini-cell fill">ん</i><i class="mini-cell head fill">ご</i><i class="mini-cell"></i><i class="mini-cell"></i>
@@ -842,6 +858,38 @@
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
             <p><b>禁止</b><span>「ん」で終わる単語と、一度使った単語は使えません。</span></p>
+          </li>
+        </ul>
+        <ul id="snakeRuleList" class="rule-list panel hidden">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill apple">り</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">ご</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">ね</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">こ</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple">す</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>りんご配置</b><span>開始時に、単語で使える文字がりんごとして盤面に置かれます。りんご同士は隣り合いません。</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">り</i><i class="mini-cell fill">ん</i><i class="mini-cell fill apple pass">ご</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">り</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">ら</i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>通過</b><span>単語の文字がりんごマスと合えば、そのマスを通過してりんごを取れます。</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill apple pass">り</i><i class="mini-cell fill">ん</i><i class="mini-cell"></i><i class="mini-cell fill apple pass">ご</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">り</i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">ね</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple pass">こ</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>りんご得点</b><span>新しく取ったりんごごとにボーナスが増えます。1個目+10、2個目+20、3個目+30です。</span></p>
           </li>
         </ul>
 
@@ -1230,7 +1278,9 @@
       startBtn: document.querySelector("#startBtn"),
       introScreen: document.querySelector("#introScreen"),
       gameScreen: document.querySelector("#gameScreen"),
-      dictStatus: document.querySelector("#dictStatus")
+      dictStatus: document.querySelector("#dictStatus"),
+      classicRuleList: document.querySelector("#classicRuleList"),
+      snakeRuleList: document.querySelector("#snakeRuleList")
     };
 
     function initialState() {
@@ -1619,6 +1669,12 @@
     function setMessage(message, type) {
       state.message = message;
       state.messageType = type;
+    }
+
+    function updateIntroRules() {
+      const snakeMode = normalizeMode(els.modeSelect.value) === "snake";
+      els.classicRuleList.classList.toggle("hidden", snakeMode);
+      els.snakeRuleList.classList.toggle("hidden", !snakeMode);
     }
 
     function undo() {
@@ -2652,6 +2708,7 @@
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.modeSelect.addEventListener("change", () => {
+      updateIntroRules();
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.placeBtn.addEventListener("click", placeCurrentWord);
@@ -2689,6 +2746,7 @@
     const startedFromUrl = startFromUrlParams();
     if (!startedFromUrl) {
       els.introScreen.classList.remove("hidden");
+      updateIntroRules();
       render();
     }
     loadBlockedDictionary();

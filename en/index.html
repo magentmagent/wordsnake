@@ -192,6 +192,22 @@
       box-shadow: inset 0 0 0 2px #be185d;
     }
 
+    .mini-cell.apple {
+      position: relative;
+    }
+
+    .mini-cell.apple::after {
+      content: "";
+      position: absolute;
+      right: 12%;
+      bottom: 12%;
+      width: 24%;
+      height: 24%;
+      border-radius: 999px;
+      background: var(--accent-2);
+      border: 1px solid #fffdf8;
+    }
+
     .game-header {
       display: flex;
       align-items: center;
@@ -792,7 +808,7 @@
         <h1>word chain snake<br>English</h1>
         <p class="intro-copy">Chain words by their last and first letters while moving like a snake.</p>
 
-        <ul class="rule-list panel">
+        <ul id="classicRuleList" class="rule-list panel">
           <li>
             <div class="mini-board" aria-hidden="true">
               <i class="mini-cell start fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill">O</i><i class="mini-cell fill">N</i><i class="mini-cell head fill">E</i>
@@ -842,6 +858,38 @@
               <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
             </div>
             <p><b>Forbidden</b><span>Once STONE has been used, STONE cannot be placed again.</span></p>
+          </li>
+        </ul>
+        <ul id="snakeRuleList" class="rule-list panel hidden">
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell"></i><i class="mini-cell fill apple">A</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">R</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">T</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill apple">E</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple">S</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>Apple Setup</b><span>Random usable letters appear as apples across the board. Apples never touch each other.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill">S</i><i class="mini-cell fill">T</i><i class="mini-cell fill apple pass">O</i><i class="mini-cell fill">N</i><i class="mini-cell fill">E</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">A</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">G</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">L</i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell next">E</i>
+            </div>
+            <p><b>Passing Apples</b><span>If your word matches the apple tile's letter, you pass through it and collect that apple.</span></p>
+          </li>
+          <li>
+            <div class="mini-board" aria-hidden="true">
+              <i class="mini-cell fill apple pass">A</i><i class="mini-cell fill">P</i><i class="mini-cell"></i><i class="mini-cell fill apple pass">E</i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell fill">A</i><i class="mini-cell"></i>
+              <i class="mini-cell fill apple">R</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell fill apple pass">S</i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+              <i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i><i class="mini-cell"></i>
+            </div>
+            <p><b>Apple Bonus</b><span>Each newly collected apple gives a growing bonus: first +10, second +20, third +30.</span></p>
           </li>
         </ul>
 
@@ -1216,7 +1264,9 @@
       startBtn: document.querySelector("#startBtn"),
       introScreen: document.querySelector("#introScreen"),
       gameScreen: document.querySelector("#gameScreen"),
-      dictStatus: document.querySelector("#dictStatus")
+      dictStatus: document.querySelector("#dictStatus"),
+      classicRuleList: document.querySelector("#classicRuleList"),
+      snakeRuleList: document.querySelector("#snakeRuleList")
     };
 
     function initialState() {
@@ -1605,6 +1655,12 @@
     function setMessage(message, type) {
       state.message = message;
       state.messageType = type;
+    }
+
+    function updateIntroRules() {
+      const snakeMode = normalizeMode(els.modeSelect.value) === "snake";
+      els.classicRuleList.classList.toggle("hidden", snakeMode);
+      els.snakeRuleList.classList.toggle("hidden", !snakeMode);
     }
 
     function undo() {
@@ -2636,6 +2692,7 @@
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.modeSelect.addEventListener("change", () => {
+      updateIntroRules();
       if (!els.introRankingPanel.classList.contains("hidden")) showIntroRanking();
     });
     els.placeBtn.addEventListener("click", placeCurrentWord);
@@ -2672,6 +2729,7 @@
     const startedFromUrl = startFromUrlParams();
     if (!startedFromUrl) {
       els.introScreen.classList.remove("hidden");
+      updateIntroRules();
       render();
     }
     loadBlockedDictionary();
