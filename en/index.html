@@ -1759,6 +1759,7 @@
       els.message.classList.toggle("error", state.messageType === "error");
       els.boardInput.disabled = controlsLocked;
       els.placeBtn.classList.toggle("hidden", controlsLocked);
+      els.placeBtn.setAttribute("aria-hidden", String(controlsLocked));
       renderSuggestionPanel();
       renderResultPanel();
       renderBoard();
