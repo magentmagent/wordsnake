@@ -136,7 +136,7 @@ async function listScores(url, env) {
   const mode = normalizeMode(url.searchParams.get("mode"), game);
   const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
   const id = String(url.searchParams.get("id") || "").trim();
-  const records = await listScoreRecords(env, scorePrefix(game, boardSize, lang, mode));
+  const records = await listScoreRecords(env, scorePrefixes(game, boardSize, lang, mode));
   const items = records.slice(0, limit);
   const ownIndex = id ? records.findIndex(item => item.id === id) : -1;
   const ownRank = ownIndex >= 0 ? ownIndex + 1 : null;
@@ -250,17 +250,22 @@ async function incrementStat(env, key, base) {
   await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
 }
 
-async function listScoreRecords(env, prefix) {
+async function listScoreRecords(env, prefixes) {
   const out = [];
-  let cursor;
-  do {
-    const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix, cursor });
-    for (const item of page.keys) {
-      const record = await readRecord(env, item.name);
-      if (record) out.push(record);
-    }
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
+  const seen = new Set();
+  for (const prefix of Array.isArray(prefixes) ? prefixes : [prefixes]) {
+    let cursor;
+    do {
+      const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix, cursor });
+      for (const item of page.keys) {
+        const record = await readRecord(env, item.name);
+        if (!record || seen.has(record.id)) continue;
+        seen.add(record.id);
+        out.push(record);
+      }
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+  }
 
   out.sort((a, b) => {
     const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
@@ -344,17 +349,26 @@ function wordKey(word, lang = "ko") {
   return lang === "ko" ? `word:${word}` : `word:${lang}:${word}`;
 }
 
+function scorePrefixes(game = "word-chain-snake", boardSize, lang = "ko", mode = "classic") {
+  if (game === "crown-chain" || game === "tower-cut") {
+    const prefixes = [`score:${game}:all:${mode}:${boardSize}:`];
+    for (const legacyLang of ["en", "ko", "ja"]) {
+      prefixes.push(`score:${game}:${legacyLang}:${mode}:${boardSize}:`);
+    }
+    return prefixes;
+  }
+  return [scorePrefix(game, boardSize, lang, mode)];
+}
+
 function scorePrefix(game = "word-chain-snake", boardSize, lang = "ko", mode = "classic") {
-  if (game === "crown-chain") return `score:${game}:${lang}:${mode}:${boardSize}:`;
-  if (game === "tower-cut") return `score:${game}:${lang}:${mode}:${boardSize}:`;
+  if (game === "crown-chain" || game === "tower-cut") return `score:${game}:all:${mode}:${boardSize}:`;
   if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:`;
   return lang === "ko" ? `score:${boardSize}:` : `score:${lang}:${boardSize}:`;
 }
 
 function scoreKey(game = "word-chain-snake", boardSize, rankScore, id, lang = "ko", mode = "classic") {
   const stamp = Date.now();
-  if (game === "crown-chain") return `score:${game}:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
-  if (game === "tower-cut") return `score:${game}:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
+  if (game === "crown-chain" || game === "tower-cut") return `score:${game}:all:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   return lang === "ko"
     ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
