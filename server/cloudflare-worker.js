@@ -198,7 +198,7 @@ function defaultStatItems(scope, day) {
       }
     }
 
-    for (const mode of ["basic", "chaos"]) {
+    for (const mode of ["basic", "basic-time", "chaos", "chaos-time"]) {
       for (const type of ["page_view", "game_start", "game_finish_gameover", "share_result"]) {
         push("crown-chain", lang, 8, mode, type);
       }
@@ -321,7 +321,9 @@ function normalizeGame(value) {
 
 function normalizeMode(value, game = "word-chain-snake") {
   const mode = String(value || "").toLowerCase();
-  if (game === "crown-chain") return mode === "chaos" ? "chaos" : "basic";
+  if (game === "crown-chain") {
+    return ["basic", "basic-time", "chaos", "chaos-time"].includes(mode) ? mode : "basic";
+  }
   if (game === "tower-cut") return mode === "180" ? "180" : "60";
   return mode === "snake" ? "snake" : "classic";
 }
