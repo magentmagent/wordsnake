@@ -109,32 +109,34 @@ async function decideSuggestion(request, word, action, env, url) {
 
 async function createScore(request, env) {
   const body = await request.json().catch(() => ({}));
+  const game = normalizeGame(body.game);
   const lang = normalizeLang(body.lang);
   const score = clampInteger(body.score, 0, 999999999);
   const boardSize = clampInteger(body.boardSize, 6, 12);
-  const mode = normalizeMode(body.mode);
+  const mode = normalizeMode(body.mode, game);
   const total = clampInteger(body.total, boardSize * boardSize, boardSize * boardSize);
   const filled = clampInteger(body.filled, 0, total);
   const turns = clampInteger(body.turns, 0, 9999);
-  const finishType = body.finishType === "clear" ? "clear" : "surrender";
+  const finishType = normalizeFinishType(body.finishType, game);
   const name = sanitizePlayerName(body.name);
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const rankScore = String(999999999 - score).padStart(9, "0");
-  const key = scoreKey(boardSize, rankScore, id, lang, mode);
-  const record = { id, lang, mode, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
+  const key = scoreKey(game, boardSize, rankScore, id, lang, mode);
+  const record = { id, game, lang, mode, name, score, boardSize, filled, total, turns, finishType, createdAt: now };
 
   await env.WORDSNAKE_SUGGESTIONS.put(key, JSON.stringify(record));
   return json({ ok: true, item: record }, 201);
 }
 
 async function listScores(url, env) {
+  const game = normalizeGame(url.searchParams.get("game"));
   const lang = normalizeLang(url.searchParams.get("lang"));
   const boardSize = clampInteger(url.searchParams.get("boardSize"), 6, 12);
-  const mode = normalizeMode(url.searchParams.get("mode"));
+  const mode = normalizeMode(url.searchParams.get("mode"), game);
   const limit = clampInteger(url.searchParams.get("limit"), 1, 50);
   const id = String(url.searchParams.get("id") || "").trim();
-  const records = await listScoreRecords(env, scorePrefix(boardSize, lang, mode));
+  const records = await listScoreRecords(env, scorePrefix(game, boardSize, lang, mode));
   const items = records.slice(0, limit);
   const ownIndex = id ? records.findIndex(item => item.id === id) : -1;
   const ownRank = ownIndex >= 0 ? ownIndex + 1 : null;
@@ -144,15 +146,16 @@ async function listScores(url, env) {
 
 async function createEvent(request, env) {
   const body = await request.json().catch(() => ({}));
+  const game = normalizeGame(body.game);
   const lang = normalizeLang(body.lang);
   const boardSize = clampInteger(body.boardSize, 6, 12);
-  const mode = normalizeMode(body.mode);
-  const type = normalizeEventType(body.type, body.finishType);
+  const mode = normalizeMode(body.mode, game);
+  const type = normalizeEventType(body.type, body.finishType, game);
   if (!type) return json({ error: "invalid event" }, 400);
 
   const day = new Date().toISOString().slice(0, 10);
-  await incrementStat(env, statKey("day", day, lang, boardSize, mode, type), { scope: "day", day, lang, boardSize, mode, type });
-  await incrementStat(env, statKey("all", "all", lang, boardSize, mode, type), { scope: "all", day: "all", lang, boardSize, mode, type });
+  await incrementStat(env, statKey("day", day, game, lang, boardSize, mode, type), { scope: "day", day, game, lang, boardSize, mode, type });
+  await incrementStat(env, statKey("all", "all", game, lang, boardSize, mode, type), { scope: "all", day: "all", game, lang, boardSize, mode, type });
   return json({ ok: true });
 }
 
@@ -171,7 +174,7 @@ async function listStats(request, url, env) {
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  items.sort((a, b) => `${a.lang}:${a.boardSize}:${a.mode || "classic"}:${a.type}`.localeCompare(`${b.lang}:${b.boardSize}:${b.mode || "classic"}:${b.type}`));
+  items.sort((a, b) => `${a.game || "word-chain-snake"}:${a.lang}:${a.boardSize}:${a.mode || "classic"}:${a.type}`.localeCompare(`${b.game || "word-chain-snake"}:${b.lang}:${b.boardSize}:${b.mode || "classic"}:${b.type}`));
   return json({ scope, day, items });
 }
 
@@ -241,8 +244,25 @@ function normalizeLang(value) {
   return ["ko", "en", "ja"].includes(lang) ? lang : "ko";
 }
 
-function normalizeMode(value) {
-  return String(value || "classic").toLowerCase() === "snake" ? "snake" : "classic";
+function normalizeGame(value) {
+  const game = String(value || "word-chain-snake").toLowerCase();
+  if (game === "crown-chain") return "crown-chain";
+  if (game === "tower-cut") return "tower-cut";
+  return "word-chain-snake";
+}
+
+function normalizeMode(value, game = "word-chain-snake") {
+  const mode = String(value || "").toLowerCase();
+  if (game === "crown-chain") return mode === "chaos" ? "chaos" : "basic";
+  if (game === "tower-cut") return "classic";
+  return mode === "snake" ? "snake" : "classic";
+}
+
+function normalizeFinishType(value, game = "word-chain-snake") {
+  const finishType = String(value || "").toLowerCase();
+  if (game === "crown-chain") return finishType === "gameover" ? "gameover" : "gameover";
+  if (game === "tower-cut") return finishType === "manual" ? "manual" : "timeout";
+  return finishType === "clear" ? "clear" : "surrender";
 }
 
 function normalizeWord(word, lang = "ko") {
@@ -261,29 +281,36 @@ function wordKey(word, lang = "ko") {
   return lang === "ko" ? `word:${word}` : `word:${lang}:${word}`;
 }
 
-function scorePrefix(boardSize, lang = "ko", mode = "classic") {
+function scorePrefix(game = "word-chain-snake", boardSize, lang = "ko", mode = "classic") {
+  if (game === "crown-chain") return `score:${game}:${lang}:${mode}:${boardSize}:`;
+  if (game === "tower-cut") return `score:${game}:${lang}:${mode}:${boardSize}:`;
   if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:`;
   return lang === "ko" ? `score:${boardSize}:` : `score:${lang}:${boardSize}:`;
 }
 
-function scoreKey(boardSize, rankScore, id, lang = "ko", mode = "classic") {
+function scoreKey(game = "word-chain-snake", boardSize, rankScore, id, lang = "ko", mode = "classic") {
   const stamp = Date.now();
+  if (game === "crown-chain") return `score:${game}:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
+  if (game === "tower-cut") return `score:${game}:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   return lang === "ko"
     ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
     : `score:${lang}:${boardSize}:${rankScore}:${stamp}:${id}`;
 }
 
-function normalizeEventType(type, finishType = "") {
+function normalizeEventType(type, finishType = "", game = "word-chain-snake") {
   const eventType = String(type || "").trim();
+  if (eventType === "page_view") return "page_view";
   if (eventType === "game_start") return "game_start";
   if (eventType === "share_result") return "share_result";
+  if (game === "crown-chain" && eventType === "game_finish") return "game_finish_gameover";
+  if (game === "tower-cut" && eventType === "game_finish") return finishType === "manual" ? "game_finish_manual" : "game_finish_timeout";
   if (eventType === "game_finish") return finishType === "clear" ? "game_finish_clear" : "game_finish_surrender";
   return "";
 }
 
-function statKey(scope, day, lang, boardSize, mode, type) {
-  return `stats:${scope}:${day}:${lang}:${boardSize}:${mode}:${type}`;
+function statKey(scope, day, game, lang, boardSize, mode, type) {
+  return `stats:${scope}:${day}:${game}:${lang}:${boardSize}:${mode}:${type}`;
 }
 
 function clampInteger(value, min, max) {
