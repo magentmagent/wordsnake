@@ -164,18 +164,81 @@ async function listStats(request, url, env) {
   const scope = url.searchParams.get("scope") === "all" ? "all" : "day";
   const day = scope === "all" ? "all" : String(url.searchParams.get("date") || new Date().toISOString().slice(0, 10));
   const prefix = `stats:${scope}:${day}:`;
-  const items = [];
+  const itemsByKey = new Map();
+  for (const item of defaultStatItems(scope, day)) {
+    itemsByKey.set(statIdentity(item), item);
+  }
   let cursor;
   do {
     const page = await env.WORDSNAKE_SUGGESTIONS.list({ prefix, cursor });
     for (const item of page.keys) {
       const record = await readRecord(env, item.name);
-      if (record) items.push(record);
+      if (record) itemsByKey.set(statIdentity(record), normalizeStatRecord(record, scope, day));
     }
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
+  const items = [...itemsByKey.values()];
   items.sort((a, b) => `${a.game || "word-chain-snake"}:${a.lang}:${a.boardSize}:${a.mode || "classic"}:${a.type}`.localeCompare(`${b.game || "word-chain-snake"}:${b.lang}:${b.boardSize}:${b.mode || "classic"}:${b.type}`));
   return json({ scope, day, items });
+}
+
+function defaultStatItems(scope, day) {
+  const items = [];
+  const langs = ["en", "ko", "ja"];
+  const push = (game, lang, boardSize, mode, type) => {
+    items.push({ scope, day, game, lang, boardSize, mode, type, count: 0 });
+  };
+
+  for (const lang of langs) {
+    for (let boardSize = 6; boardSize <= 12; boardSize += 1) {
+      for (const mode of ["classic", "snake"]) {
+        for (const type of ["page_view", "game_start", "game_finish_clear", "game_finish_surrender", "share_result"]) {
+          push("word-chain-snake", lang, boardSize, mode, type);
+        }
+      }
+    }
+
+    for (const mode of ["basic", "chaos"]) {
+      for (const type of ["page_view", "game_start", "game_finish_gameover", "share_result"]) {
+        push("crown-chain", lang, 8, mode, type);
+      }
+    }
+
+    for (const mode of ["60", "180"]) {
+      for (const type of ["page_view", "game_start", "game_finish_manual", "game_finish_timeout", "share_result"]) {
+        push("tower-cut", lang, 6, mode, type);
+      }
+    }
+  }
+  return items;
+}
+
+function statIdentity(item) {
+  const game = normalizeGame(item.game);
+  const lang = normalizeLang(item.lang);
+  const boardSize = clampInteger(item.boardSize, 1, 99);
+  const mode = normalizeMode(item.mode, game);
+  const type = normalizeEventType(item.type, item.finishType, game) || String(item.type || "");
+  return `${game}:${lang}:${boardSize}:${mode}:${type}`;
+}
+
+function normalizeStatRecord(record, scope, day) {
+  const game = normalizeGame(record.game);
+  const lang = normalizeLang(record.lang);
+  const boardSize = clampInteger(record.boardSize, 1, 99);
+  const mode = normalizeMode(record.mode, game);
+  const type = normalizeEventType(record.type, record.finishType, game) || String(record.type || "");
+  return {
+    ...record,
+    scope,
+    day,
+    game,
+    lang,
+    boardSize,
+    mode,
+    type,
+    count: clampInteger(record.count, 0, 999999999)
+  };
 }
 
 async function incrementStat(env, key, base) {
@@ -254,7 +317,7 @@ function normalizeGame(value) {
 function normalizeMode(value, game = "word-chain-snake") {
   const mode = String(value || "").toLowerCase();
   if (game === "crown-chain") return mode === "chaos" ? "chaos" : "basic";
-  if (game === "tower-cut") return "classic";
+  if (game === "tower-cut") return mode === "180" ? "180" : "60";
   return mode === "snake" ? "snake" : "classic";
 }
 
