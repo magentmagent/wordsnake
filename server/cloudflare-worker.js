@@ -109,7 +109,7 @@ async function decideSuggestion(request, word, action, env, url) {
 
 async function createScore(request, env) {
   const body = await request.json().catch(() => ({}));
-  const game = normalizeGame(body.game);
+  const game = gameFromPayloadOrRequest(body.game, request);
   const lang = normalizeLang(body.lang);
   const score = clampInteger(body.score, 0, 999999999);
   const boardSize = clampInteger(body.boardSize, 6, 12);
@@ -146,7 +146,7 @@ async function listScores(url, env) {
 
 async function createEvent(request, env) {
   const body = await request.json().catch(() => ({}));
-  const game = normalizeGame(body.game);
+  const game = gameFromPayloadOrRequest(body.game, request);
   const lang = normalizeLang(body.lang);
   const boardSize = clampInteger(body.boardSize, 6, 12);
   const mode = normalizeMode(body.mode, game);
@@ -312,11 +312,38 @@ function normalizeLang(value) {
   return ["ko", "en", "ja"].includes(lang) ? lang : "ko";
 }
 
-function normalizeGame(value) {
+function knownGame(value) {
   const game = String(value || "word-chain-snake").toLowerCase();
   if (game === "crown-chain") return "crown-chain";
   if (game === "tower-cut") return "tower-cut";
+  if (game === "word-chain-snake") return "word-chain-snake";
+  return "";
+}
+
+function normalizeGame(value) {
+  const game = knownGame(value);
+  if (game) return game;
   return "word-chain-snake";
+}
+
+function gameFromPayloadOrRequest(value, request) {
+  const hinted = gameFromRequest(request);
+  const payload = knownGame(value);
+  if (hinted && (!payload || hinted !== payload)) return hinted;
+  return payload || hinted || "word-chain-snake";
+}
+
+function gameFromRequest(request) {
+  const referer = String(request.headers.get("Referer") || request.headers.get("Referrer") || "");
+  try {
+    const path = new URL(referer).pathname.toLowerCase();
+    if (path.includes("/crown-chain/")) return "crown-chain";
+    if (path.includes("/tower-cut/")) return "tower-cut";
+    if (path.includes("/word-chain-snake/")) return "word-chain-snake";
+  } catch {
+    // Some clients omit Referer. In that case, trust the explicit payload.
+  }
+  return "";
 }
 
 function normalizeMode(value, game = "word-chain-snake") {
