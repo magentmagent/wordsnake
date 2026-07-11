@@ -191,7 +191,7 @@ function defaultStatItems(scope, day) {
 
   for (const lang of langs) {
     for (let boardSize = 6; boardSize <= 12; boardSize += 1) {
-      for (const mode of ["classic", "snake"]) {
+      for (const mode of ["classic", "snake", "daily"]) {
         for (const type of ["page_view", "game_start", "game_finish_clear", "game_finish_surrender", "share_result"]) {
           push("word-chain-snake", lang, boardSize, mode, type);
         }
@@ -352,7 +352,7 @@ function normalizeMode(value, game = "word-chain-snake") {
     return ["basic", "basic-time", "chaos", "chaos-time"].includes(mode) ? mode : "basic";
   }
   if (game === "tower-cut") return mode === "180" ? "180" : "60";
-  return mode === "snake" ? "snake" : "classic";
+  return ["snake", "daily"].includes(mode) ? mode : "classic";
 }
 
 function normalizeFinishType(value, game = "word-chain-snake") {
@@ -391,14 +391,14 @@ function scorePrefixes(game = "word-chain-snake", boardSize, lang = "ko", mode =
 
 function scorePrefix(game = "word-chain-snake", boardSize, lang = "ko", mode = "classic") {
   if (game === "crown-chain" || game === "tower-cut") return `score:${game}:all:${mode}:${boardSize}:`;
-  if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:`;
+  if (mode === "snake" || mode === "daily") return `score:${lang}:${mode}:${boardSize}:`;
   return lang === "ko" ? `score:${boardSize}:` : `score:${lang}:${boardSize}:`;
 }
 
 function scoreKey(game = "word-chain-snake", boardSize, rankScore, id, lang = "ko", mode = "classic") {
   const stamp = Date.now();
   if (game === "crown-chain" || game === "tower-cut") return `score:${game}:all:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
-  if (mode === "snake") return `score:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
+  if (mode === "snake" || mode === "daily") return `score:${lang}:${mode}:${boardSize}:${rankScore}:${stamp}:${id}`;
   return lang === "ko"
     ? `score:${boardSize}:${rankScore}:${stamp}:${id}`
     : `score:${lang}:${boardSize}:${rankScore}:${stamp}:${id}`;
